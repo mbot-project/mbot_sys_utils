@@ -1,0 +1,16 @@
+[Unit]
+Description=Push Mbot IP Address
+Wants=network-online.target
+Wants=time-sync.target
+After=time-sync.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/etc/mbot_publish_info.sh
+WorkingDirectory=/usr/local/etc
+User=root
+RemainAfterExit=yes
+
+[Install]
+WantedBy=graphical.target

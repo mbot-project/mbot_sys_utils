@@ -1,0 +1,7 @@
+Installers/
+
+# Downloads
+*.tar.gz
+*.deb
+*.gpg
+lcm-*

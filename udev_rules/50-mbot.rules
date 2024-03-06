@@ -1,0 +1,7 @@
+SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", SYMLINK="rplidar", MODE="0666"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="2e8a", ATTRS{idProduct}=="0003", SYMLINK="mbot_bootldr", MODE="0666"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="2e8a", ATTRS{idProduct}=="000b", GOTO="mbot_interfaces"
+
+LABEL="mbot_interfaces"
+ATTRS{bInterfaceNumber}=="00", ATTRS{interface}=="Board CDC 2x", SYMLINK="mbot_tty", MODE="0666"
+ATTRS{bInterfaceNumber}=="02", ATTRS{interface}=="Board CDC 2x", SYMLINK="mbot_lcm", MODE="0666"

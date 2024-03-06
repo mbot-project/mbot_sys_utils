@@ -1,0 +1,1 @@
+ACTION=="add", SUBSYSTEM=="net", ATTRS{idVendor}=="2357", ATTRS{idProduct}=="011e", TAG+="systemd", ENV(SYSTEMD_WANTS)+="mbot-start-networking.service"

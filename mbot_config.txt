@@ -1,0 +1,8 @@
+mbot_hostname=mbot-0000
+mbot_ap_password=iloverobots
+new_wifi_ssid=HomeWifiSSID
+new_wifi_password=HomeWifiPassword
+mbot_ip_list_url=https://github.com/MBot-Project-Development/mbot_ip_registry.git
+mbot_ip_list_user=mbotinfo
+mbot_ip_list_token=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
+autostart=run
