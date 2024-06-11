@@ -2,6 +2,7 @@
 Install scripts and utilities for setting up MBot environment on Ubuntu/Debian
 
 ### Setting up a fresh image ###
+> This is for mbot using Pi4 or Jetson Nano
 
 1. Install dependencies using scripts in install_scripts directory.
 ```bash
