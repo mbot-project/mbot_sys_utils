@@ -5,11 +5,12 @@ import datetime
 import subprocess
 # Define the path to the config file
 is_ubuntu = 'Ubuntu' in subprocess.check_output(['cat', '/etc/os-release']).decode('utf-8')
-is_raspios = 'Raspberry Pi OS' in subprocess.check_output(['cat', '/etc/os-release']).decode('utf-8')
+is_pi4 = 'Raspberry Pi OS' in subprocess.check_output(['cat', '/etc/os-release']).decode('utf-8')
+is_pi5 = 'bookworm' in subprocess.check_output(['cat', '/etc/os-release']).decode('utf-8')
 
-if(is_ubuntu):
+if(is_ubuntu or is_pi5):
     config_file = "/boot/firmware/mbot_config.txt"
-else:
+elif is_pi4:
     config_file = "/boot/mbot_config.txt"
 
 # Check devices then assign GPIO Numbers,
