@@ -2,8 +2,6 @@
 Install scripts and utilities for setting up MBot environment on Ubuntu/Debian
 
 ### Setting up a fresh image ###
-> This is for mbot using Pi4 or Jetson Nano
-
 1. Install dependencies using scripts in install_scripts directory.
 ```bash
 sudo ./install_scripts/install_mbot_dependencies.sh
@@ -16,10 +14,15 @@ sudo ./install_scripts/install_nomachine.sh   # Recommended for debugging.
 sudo ./install_scripts/install_vscode.sh      # Only if you want to develop on the Pi.
 ```
 
-3. Copy mbot_config.txt to the proper loacation in the boot folder. On Ubuntu 22.04 this is `/boot/firmware`, on Raspberry Pi OS this is just `/boot`:
-```bash
-sudo cp mbot_config.txt [/boot, /boot/firmware]
-```
+3. Copy mbot_config.txt to the proper loacation in the boot folder.
+   - On Ubuntu 22.04 and Raspberry Pi 5 this is `/boot/firmware`
+    ```bash
+    sudo cp mbot_config.txt /boot/firmware
+    ```
+   - on Raspberry Pi 4 this is just `/boot`:
+    ```bash
+    sudo cp mbot_config.txt /boot
+    ```
 
 4. Edit the configuration:
 ```bash
