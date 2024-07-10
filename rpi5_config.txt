@@ -1,0 +1,2 @@
+# https://www.raspberrypi.com/documentation/computers/config_txt.html
+# This file name should be included in the /boot/firmware/config.txt already
