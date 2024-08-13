@@ -3,16 +3,16 @@ Install scripts and utilities for setting up MBot environment on Ubuntu/Debian
 
 ### Setting up a fresh image ###
 1. Install dependencies using scripts in install_scripts directory.
-```bash
-sudo ./install_scripts/install_mbot_dependencies.sh
-./install_scripts/install_lcm.sh
-```
+    ```bash
+    sudo ./install_scripts/install_mbot_dependencies.sh
+    ./install_scripts/install_lcm.sh
+    ```
 
 2. Optional installs:
-```bash
-sudo ./install_scripts/install_nomachine.sh   # Recommended for debugging.
-sudo ./install_scripts/install_vscode.sh      # Only if you want to develop on the Pi.
-```
+    ```bash
+    sudo ./install_scripts/install_nomachine.sh   # Recommended for debugging.
+    sudo ./install_scripts/install_vscode.sh      # Only if you want to develop on the Pi.
+    ```
 
 3. Copy `mbot_config.txt` to the proper loacation in the boot folder.
    - On Ubuntu 22.04 and Raspberry Pi 5 this is `/boot/firmware`
