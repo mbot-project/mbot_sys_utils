@@ -17,6 +17,30 @@ wait_for_ip() {
     echo "Got IP after $count seconds." | tee -a $LOG
 }
 
+push_to_git() {
+    if [ -d "$GIT_PATH" ]; then
+        rm -rf $GIT_PATH
+    fi
+
+    git clone --depth=1 "https://$GIT_USER:$GIT_TOKEN@$GIT_ADDR" "$GIT_PATH" | tee -a $LOG
+
+    git -C $GIT_PATH config --local user.email "$GIT_USER"
+    git -C $GIT_PATH config --local user.name "$GIT_USER"
+    #git config pull.rebase false
+    git -C $GIT_PATH pull https://$GIT_USER:$GIT_TOKEN@$GIT_ADDR | tee -a $LOG
+
+    echo "Calling python script" | tee -a $LOG
+    python3 $GIT_PATH/register_mbot.py -hostname $HOSTNAME -ip $IP -log $LOG
+    echo "Adding..." | tee -a $LOG
+    git -C $GIT_PATH/ add data/$HOSTNAME.json | tee -a $LOG
+    echo "Committing..." | tee -a $LOG
+    git -C $GIT_PATH/ commit -m "Auto update $HOSTNAME IP" | tee -a $LOG
+    echo "Pushing..." | tee -a $LOG
+    git -C $GIT_PATH/ push https://$GIT_USER:$GIT_TOKEN@$GIT_ADDR | tee -a $LOG
+    echo "Deleting local copy: $GIT_PATH" | tee -a $LOG
+    rm -rf $GIT_PATH
+}
+
 HOSTNAME=$(hostname)
 IP=$(hostname -I | awk '{print $1}')
 LOG_PATH="/var/log/mbot"
@@ -33,6 +57,7 @@ else
     exit 1
 fi
 
+# Grab Git information.
 GIT_USER=$(grep "^mbot_ip_list_user=" $CONFIG_FILE | cut -d'=' -f2)
 GIT_TOKEN=$(grep "^mbot_ip_list_token=" $CONFIG_FILE | cut -d'=' -f2)
 GIT_URL=$(grep "^mbot_ip_list_url=" $CONFIG_FILE | cut -d'=' -f2)
@@ -46,31 +71,18 @@ echo "Hostname= $HOSTNAME" | tee -a $LOG
 if [ -z $IP ]; then
     wait_for_ip
 fi
+
+# Write the IP to the SD card.
 echo "IP= $IP" | tee -a $LOG
+echo "Writing IP to log file: $IP_OUT_FILE"
 echo "My IP is $IP!" > $IP_OUT_FILE
 
-if [ -d "$GIT_PATH" ]; then
-    rm -rf $GIT_PATH
+# Push to Git repo only if the information was provided.
+if [ -z $GIT_USER ] || [ -z $GIT_TOKEN ] || [ -z $GIT_URL ]; then
+    echo "Git information not provided, not pushing IP information." | tee -a $LOG
+else
+    push_to_git
 fi
 
-if [ ! -d "$GIT_PATH" ]; then
-    git clone --depth=1 "https://$GIT_USER:$GIT_TOKEN@$GIT_ADDR" "$GIT_PATH" | tee -a $LOG
-fi
-
-git -C $GIT_PATH config --local user.email "$GIT_USER"
-git -C $GIT_PATH config --local user.name "$GIT_USER"
-#git config pull.rebase false
-git -C $GIT_PATH pull https://$GIT_USER:$GIT_TOKEN@$GIT_ADDR | tee -a $LOG
-
-echo "Calling python script" | tee -a $LOG
-python3 $GIT_PATH/register_mbot.py -hostname $HOSTNAME -ip $IP -log $LOG
-echo "Adding..." | tee -a $LOG
-git -C $GIT_PATH/ add data/$HOSTNAME.json | tee -a $LOG
-echo "Committing..." | tee -a $LOG
-git -C $GIT_PATH/ commit -m "Auto update $HOSTNAME IP" | tee -a $LOG
-echo "Pushing..." | tee -a $LOG
-git -C $GIT_PATH/ push https://$GIT_USER:$GIT_TOKEN@$GIT_ADDR | tee -a $LOG
-echo "Deleting local copy: $GIT_PATH" | tee -a $LOG
-rm -rf $GIT_PATH
 echo "Done, exiting" | tee -a $LOG
 exit 0
