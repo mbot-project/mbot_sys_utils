@@ -18,10 +18,14 @@ elif is_pi4:
 # on RPi pin 7 is gpio4, pin 11 is gpio17
 with open('/proc/device-tree/model', 'r') as file:
     data = file.read()
-if "Raspberry Pi" in data:
-    print("Detected Raspberry Pi")
+if "Raspberry Pi 4" in data:
+    print("Detected Raspberry Pi 4")
     BTLD_PIN = 4
     RUN_PIN = 17
+elif "Raspberry Pi 5" in data:
+    print("Detected Raspberry Pi 5")
+    BTLD_PIN=588
+    RUN_PIN=575
 elif "NVIDIA Jetson" in data:
     print("Detected NVIDIA Jetson")
     BTLD_PIN = 50
