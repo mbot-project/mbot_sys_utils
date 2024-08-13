@@ -4,5 +4,5 @@ new_wifi_ssid=HomeWifiSSID
 new_wifi_password=HomeWifiPassword
 mbot_ip_list_url=https://github.com/MBot-Project-Development/mbot_ip_registry.git
 mbot_ip_list_user=mbotinfo
-mbot_ip_list_token=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
+mbot_ip_list_token=
 autostart=run
