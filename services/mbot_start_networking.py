@@ -5,12 +5,12 @@ import datetime
 import subprocess
 # Define the path to the config file
 is_ubuntu = 'Ubuntu' in subprocess.check_output(['cat', '/etc/os-release']).decode('utf-8')
-is_pi4 = 'Raspberry Pi OS' in subprocess.check_output(['cat', '/etc/os-release']).decode('utf-8')
-is_pi5 = 'bookworm' in subprocess.check_output(['cat', '/etc/os-release']).decode('utf-8')
+is_bullseye = 'bullseye' in subprocess.check_output(['cat', '/etc/os-release']).decode('utf-8')
+is_bookworm = 'bookworm' in subprocess.check_output(['cat', '/etc/os-release']).decode('utf-8')
 
-if(is_ubuntu or is_pi5):
+if(is_ubuntu or is_bookworm):
     config_file = "/boot/firmware/mbot_config.txt"
-elif is_pi4:
+elif is_bullseye:
     config_file = "/boot/mbot_config.txt"
 
 # Check devices then assign GPIO Numbers,
@@ -37,9 +37,10 @@ else:
 # Define the path to the log file
 log_file = "/var/log/mbot/mbot_start_networking.log"
 os.makedirs(os.path.dirname(log_file), exist_ok = True)
-os.chmod(os.path.dirname(log_file), 0o777)
+os.system("sudo chmod 777 " + os.path.dirname(log_file))
 with open(log_file, "a") as log:
-    os.chmod(log_file, 0o666)
+    # os.chmod(log_file, 0o666)
+    os.system("sudo chmod 666 " + log_file)
     current_time = datetime.datetime.now()
     formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
     log.write("===== ")
@@ -65,6 +66,7 @@ with open(log_file, "a") as log:
                 autostart = value
 
     # Change the hostname in /etc/hosts. This has to be done first.
+    os.system("sudo chmod 666 /etc/hosts")
     with open("/etc/hosts", "r") as f:
         filedata = f.read()
         filedata = filedata.replace(os.uname()[1], hostname)
@@ -73,6 +75,7 @@ with open(log_file, "a") as log:
     # Set hostname on the system.
     os.system(f"hostnamectl set-hostname {hostname}")
     # Set the hostname in /etc/hostname
+    os.system("sudo chmod 666 /etc/hostname")
     with open("/etc/hostname", "w") as f:
         f.write(hostname)
     log.write(f"hostname set to '{hostname}'\n")
@@ -158,55 +161,74 @@ with open(log_file, "a") as log:
             os.system("nmcli connection up mbot_wifi_ap")
             log.write("Access point started. \n")
 
-    if not os.path.exists(f"/sys/class/gpio/gpio{BTLD_PIN}"):
-        # Expose the GPIO pins
-        with open("/sys/class/gpio/export", "w") as f:
-            f.write(str(BTLD_PIN))
-        time.sleep(0.1)
+    # if not os.path.exists(f"/sys/class/gpio/gpio{BTLD_PIN}"):
+    #     # Expose the GPIO pins
+    #     with open("/sys/class/gpio/export", "w") as f:
+    #         f.write(str(BTLD_PIN))
+    #     time.sleep(0.1)
     
-    if not os.path.exists(f"/sys/class/gpio/gpio{RUN_PIN}"):
-        with open("/sys/class/gpio/export", "w") as f:
-            f.write(str(RUN_PIN))
-        time.sleep(0.1)
+    # if not os.path.exists(f"/sys/class/gpio/gpio{RUN_PIN}"):
+    #     with open("/sys/class/gpio/export", "w") as f:
+    #         f.write(str(RUN_PIN))
+    #     time.sleep(0.1)
 
     # Set GPIO pins to output
-    with open(f"/sys/class/gpio/gpio{BTLD_PIN}/direction", "w") as f:
-        f.write("out")
-    with open(f"/sys/class/gpio/gpio{RUN_PIN}/direction", "w") as f:
-        f.write("out")
+    # with open(f"/sys/class/gpio/gpio{BTLD_PIN}/direction", "w") as f:
+    #     f.write("out")
+    # with open(f"/sys/class/gpio/gpio{RUN_PIN}/direction", "w") as f:
+    #     f.write("out")
+    # time.sleep(0.1)
+
+    os.system("sudo pinctrl set " + str(BTLD_PIN) + " op")
+    os.system("sudo pinctrl set " + str(RUN_PIN) + " op")
     time.sleep(0.1)
 
     if autostart == "run":
         # Set RUN_PIN to low BTLD_PIN high
-        with open(f"/sys/class/gpio/gpio{RUN_PIN}/value", "w") as f:
-            f.write("0")
-        with open(f"/sys/class/gpio/gpio{BTLD_PIN}/value", "w") as f:
-            f.write("1")
+        # with open(f"/sys/class/gpio/gpio{RUN_PIN}/value", "w") as f:
+        #     f.write("0")
+        # with open(f"/sys/class/gpio/gpio{BTLD_PIN}/value", "w") as f:
+        #     f.write("1")
+
+        os.system("sudo pinctrl set " + str(RUN_PIN) + " dl")
+        os.system("sudo pinctrl set " + str(BTLD_PIN) + " dh")
         time.sleep(0.1)
+
         # Set RUN_PIN to high
-        with open(f"/sys/class/gpio/gpio{RUN_PIN}/value", "w") as f:
-            f.write("1")
+        # with open(f"/sys/class/gpio/gpio{RUN_PIN}/value", "w") as f:
+        #     f.write("1")
+
+        os.system("sudo pinctrl set " + str(RUN_PIN) + " dh")
         time.sleep(0.1)
         log.write(f"Autostart is set to run \n")
 
     elif autostart == "bootload":
         # Set BTLD_PIN low and RUN_PIN to low
-        with open(f"/sys/class/gpio/gpio{BTLD_PIN}/value", "w") as f:
-            f.write("0")
-        with open(f"/sys/class/gpio/gpio{RUN_PIN}/value", "w") as f:
-            f.write("0")
+        # with open(f"/sys/class/gpio/gpio{BTLD_PIN}/value", "w") as f:
+        #     f.write("0")
+        # with open(f"/sys/class/gpio/gpio{RUN_PIN}/value", "w") as f:
+        #     f.write("0")
+
+        os.system("sudo pinctrl set " + str(BTLD_PIN) + " dl")
+        os.system("sudo pinctrl set " + str(RUN_PIN) + " dl")
         time.sleep(0.1)
+
         # Set RUN_PIN to high
-        with open(f"/sys/class/gpio/gpio{RUN_PIN}/value", "w") as f:
-            f.write("1")
+        # with open(f"/sys/class/gpio/gpio{RUN_PIN}/value", "w") as f:
+        #     f.write("1")
+
+        os.system("sudo pinctrl set " + str(RUN_PIN) + " dh")
         log.write(f"Autostart is set to bootload \n")
     
     elif autostart == "disable":
         # Set BTLD_PIN high and RUN_PIN to low
-        with open(f"/sys/class/gpio/gpio{BTLD_PIN}/value", "w") as f:
-            f.write("1")
-        with open(f"/sys/class/gpio/gpio{RUN_PIN}/value", "w") as f:
-            f.write("0")
+        # with open(f"/sys/class/gpio/gpio{BTLD_PIN}/value", "w") as f:
+        #     f.write("1")
+        # with open(f"/sys/class/gpio/gpio{RUN_PIN}/value", "w") as f:
+        #     f.write("0")
+
+        os.system("sudo pinctrl set " + str(BTLD_PIN) + " dh")
+        os.system("sudo pinctrl set " + str(RUN_PIN) + " dl")
         time.sleep(0.1)
         log.write(f"Autostart is disabled \n")
     else:
