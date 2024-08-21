@@ -1,6 +1,6 @@
 #!/bin/bash
 
-OS = $(cat /etc/os-release | grep PRETTY_NAME | cut -d'"' -f2)
+OS=$(cat /etc/os-release | grep PRETTY_NAME | cut -d'"' -f2)
 # Determine the OS and set the config file path
 if [[ "$OS" == *"Ubuntu"* ]]; then
     config_file="/boot/firmware/mbot_config.txt"
