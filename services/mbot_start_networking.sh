@@ -25,8 +25,8 @@ if [[ "$model" == *"Raspberry Pi 4"* ]]; then
     RUN_PIN=17
 elif [[ "$model" == *"Raspberry Pi 5"* ]]; then
     echo "Detected Raspberry Pi 5"
-    BTLD_PIN=588
-    RUN_PIN=575
+    BTLD_PIN=4
+    RUN_PIN=17
 elif [[ "$model" == *"NVIDIA Jetson"* ]]; then
     echo "Detected NVIDIA Jetson"
     BTLD_PIN=50
@@ -100,10 +100,10 @@ chmod 666 "$log_file"
             if ! nmcli connection show | grep -q "$home_wifi_ssid"; then
                 home_wifi_bssid=$(echo "$sorted_avail" | head -n 1 | awk '{print $3}')
                 echo "Connecting to BSSID: $home_wifi_bssid"
-                nmcli dev wifi connect "$home_wifi_bssid" password "$home_wifi_password"
+                nmcli device wifi connect "$home_wifi_bssid" password "$home_wifi_password"
             else
                 echo "Connecting to SSID: $home_wifi_ssid"
-                nmcli connection up "$home_wifi_ssid"
+                nmcli device wifi connect "$home_wifi_ssid" password "$home_wifi_password"
             fi
             echo "Started connection to WiFi network '$home_wifi_ssid'. Done."
         else
