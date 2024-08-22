@@ -1,7 +1,18 @@
-# mbot_sys_utils
-Install scripts and utilities for setting up MBot environment on Ubuntu/Debian
+# MBot System Utilities
+Install scripts and utilities for setting up an MBot environment.
 
-### Setting up a fresh image ###
+This has been tested on Raspberry Pi OS (Debain 12, bookworm), on the Raspberry Pi 4 and 5.
+
+## Setting up a fresh image
+
+To set up a new image, get the latest Raspberry Pi OS (Debian 12, bookworm) from the [Raspberry Pi website](https://www.raspberrypi.com/software/operating-systems/). Flash the image onto an SD card, then plug in a monitor, keyboard, and mouse into your Raspberry Pi, boot, and set the desired configurations. The default login information is:
+* User: `mbot`
+* Password: `i<3robots!`
+
+### Installing Dependencies and System Utilities
+
+You will need to clone this repository after first boot. Then, follow these steps to set up the Raspberry Pi:
+
 1. Install dependencies using scripts in install_scripts directory.
     ```bash
     sudo ./install_scripts/install_mbot_dependencies.sh
@@ -42,6 +53,14 @@ Install scripts and utilities for setting up MBot environment on Ubuntu/Debian
     ./install_mbot_services.sh
     ```
 
-7. Reboot.
+7. Configure the Raspberry Pi to enable SSH and use X11 (needed for NoMachine):
+   ```bash
+   sudo raspi-config
+   ```
+   Then from the menu, change two configurations:
+   * Interface Options -> SSH -> Enable
+   * Advanced Options -> Wayland -> X11 (important for NoMachine)
+    
+8. Reboot.
 
-8. Test.
+You're done! The robot should now have the networking services installed and should either connect to the configured network or start up an access point.
