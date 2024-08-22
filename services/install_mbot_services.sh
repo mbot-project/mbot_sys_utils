@@ -7,7 +7,8 @@ SERVICE_LIST="mbot-start-network
               mbot-oled"
 
 # Copy the scripts we need for the services.
-sudo cp mbot_start_networking.py /usr/local/etc/
+sudo cp mbot_start_networking.sh /usr/local/etc/
+sudo chmod +x /usr/local/etc/mbot_start_networking.sh
 sudo cp mbot_publish_info.sh /usr/local/etc/
 sudo cp mbot_oled_display.py /usr/local/etc/
 sudo cp arial.ttf /usr/local/etc/

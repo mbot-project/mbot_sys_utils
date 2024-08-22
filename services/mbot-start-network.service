@@ -6,7 +6,7 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 PIDFile=/run/mbot_start_net.pid
-ExecStart=/usr/local/etc/mbot_start_networking.py --PIDFile /run/mbot_start_net.pid
+ExecStart=/usr/local/etc/mbot_start_networking.sh --PIDFile /run/mbot_start_net.pid
 Restart=on-failure
 RestartSec=5
 User=root
