@@ -80,10 +80,14 @@ chmod 666 "$log_file"
         echo "Connected to active WiFi network '$active_wifi_name'. Done."
     else
         echo "Looking for home network '$home_wifi_ssid'"
-        available_networks=$(nmcli --terse --fields BSSID,SSID,CHAN,SIGNAL dev wifi list | grep -v '^IN-USE')
+        available_networks=$(nmcli -m multiline --terse --fields BSSID,SSID,CHAN,SIGNAL dev wifi list | grep -v '^IN-USE')
 
         # Parse available networks and prioritize by signal strength
-        while IFS=':' read -r bssid ssid channel signal; do
+        while read -r bssid && read -r ssid && read -r channel && read -r signal; do
+            bssid=${bssid#*:}
+            ssid=${ssid#*:}
+            channel=${channel#*:}
+            signal=${signal#*:}
             if [[ "$ssid" == "$home_wifi_ssid" ]]; then
                 echo "$bssid $ssid $channel $signal"
                 available_networks_sorted+="$signal $channel $bssid $ssid\n"
@@ -95,8 +99,10 @@ chmod 666 "$log_file"
         if grep -q "$home_wifi_ssid" <<< "$sorted_avail"; then
             if ! nmcli connection show | grep -q "$home_wifi_ssid"; then
                 home_wifi_bssid=$(echo "$sorted_avail" | head -n 1 | awk '{print $3}')
+                echo "Connecting to BSSID: $home_wifi_bssid"
                 nmcli dev wifi connect "$home_wifi_bssid" password "$home_wifi_password"
             else
+                echo "Connecting to SSID: $home_wifi_ssid"
                 nmcli connection up "$home_wifi_ssid"
             fi
             echo "Started connection to WiFi network '$home_wifi_ssid'. Done."
