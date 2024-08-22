@@ -73,6 +73,7 @@ if ! route -n | grep -q "224.0.0.0"; then
 fi
 
 # Check if there is an active WiFi connection
+start_ap=false
 wifi_status=$(nmcli -t -f NAME,DEVICE,STATE c show --active | grep 'wlan0:activated')
 if [[ -n "$wifi_status" ]]; then
     active_wifi_name=$(echo "$wifi_status" | cut -d: -f1)
@@ -104,19 +105,29 @@ else
             echo "Connecting to SSID: $home_wifi_ssid" | tee -a "$log_file"
             nmcli device wifi connect "$home_wifi_ssid" password "$home_wifi_password"
         fi
-        echo "Started connection to WiFi network '$home_wifi_ssid'. Done." | tee -a "$log_file"
+
+        # If not connected, start the access point.
+        if ! nmcli device status | grep "$home_wifi_ssid" | grep -q "connected"; then
+            echo "Connection failed! Check your password!" | tee -a "$log_file"
+            start_ap=true
+        fi
     else
-        echo "No networks found, starting Access Point" | tee -a "$log_file"
-        nmcli connection show | grep -q "mbot_wifi_ap" && nmcli connection delete mbot_wifi_ap
-        nmcli connection add type wifi ifname '*' con-name mbot_wifi_ap autoconnect no ssid "$ap_ssid"
-        nmcli connection modify mbot_wifi_ap 802-11-wireless.mode ap 802-11-wireless.band a ipv4.method shared
-        nmcli connection modify mbot_wifi_ap wifi-sec.key-mgmt wpa-psk wifi-sec.psk "$ap_password"
-        nmcli connection modify mbot_wifi_ap ipv4.addresses 192.168.3.1/24 ipv4.gateway 192.168.3.1
-        echo "Access point created successfully." | tee -a "$log_file"
-        sleep 10
-        nmcli connection up mbot_wifi_ap
-        echo "Access point started." | tee -a "$log_file"
+        echo "Home network not found." | tee -a "$log_file"
+        start_ap=true
     fi
+fi
+
+if [[ $start_ap == true ]]; then
+    echo "Starting Access Point" | tee -a "$log_file"
+    nmcli connection show | grep -q "mbot_wifi_ap" && nmcli connection delete mbot_wifi_ap
+    nmcli connection add type wifi ifname '*' con-name mbot_wifi_ap autoconnect no ssid "$ap_ssid"
+    nmcli connection modify mbot_wifi_ap 802-11-wireless.mode ap 802-11-wireless.band a ipv4.method shared
+    nmcli connection modify mbot_wifi_ap wifi-sec.key-mgmt wpa-psk wifi-sec.psk "$ap_password"
+    nmcli connection modify mbot_wifi_ap ipv4.addresses 192.168.3.1/24 ipv4.gateway 192.168.3.1
+    echo "Access point created successfully." | tee -a "$log_file"
+    sleep 10
+    nmcli connection up mbot_wifi_ap
+    echo "Access point started." | tee -a "$log_file"
 fi
 
 sudo pinctrl set "$BTLD_PIN" op
