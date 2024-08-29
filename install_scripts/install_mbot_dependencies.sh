@@ -22,6 +22,18 @@ apt -y install python3-dev python3-numpy python3-matplotlib python3-opencv pytho
 # Install python pkgs for MBot OLED
 apt -y install python3-qrcode python3-luma.oled
 
+# install picotool
+wget https://github.com/raspberrypi/picotool/archive/refs/tags/1.1.1.zip
+unzip 1.1.1.zip
+cd picotool-1.1.1
+mkdir build && cd build
+cmake ..
+make
+sudo make install
+cd ../..
+rm 1.1.1.zip
+rm -rf picotool-1.1.1
+
 #### Enable features for specific platforms ####
 # Check if running on RPi
 if grep -q "Raspberry Pi" /proc/device-tree/model; then

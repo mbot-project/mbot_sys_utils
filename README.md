@@ -60,7 +60,12 @@ You will need to clone this repository after first boot. Then, follow these step
    Then from the menu, change two configurations:
    * Interface Options -> SSH -> Enable
    * Advanced Options -> Wayland -> X11 (important for NoMachine)
-    
-8. Reboot.
+
+8. Install the firmware upload script
+    ```bash
+    sudo cp mbot-upload-firmware /usr/local/bin
+    ```
+     
+9. Reboot.
 
 You're done! The robot should now have the networking services installed and should either connect to the configured network or start up an access point.
