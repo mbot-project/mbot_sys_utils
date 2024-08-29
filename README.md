@@ -17,6 +17,7 @@ You will need to clone this repository after first boot. Then, follow these step
     ```bash
     sudo ./install_scripts/install_mbot_dependencies.sh
     ./install_scripts/install_lcm.sh
+    ./install_scripts/install_picosdk.sh
     ```
 
 2. Optional installs:
@@ -40,31 +41,30 @@ You will need to clone this repository after first boot. Then, follow these step
     ```bash
     sudo nano [/boot/mbot_config.txt, /boot/firmware/mbot_config.txt]
     ```
+5. Install the firmware upload script
+    ```bash
+    sudo cp mbot-upload-firmware /usr/local/bin
+    ```
 
-5. Install udev rules:
+6. Install udev rules:
     ```bash
     cd udev_rules
     ./install_rules.sh
     ```
 
-6. Install services:
+7. Install services:
     ```bash
     cd services
     ./install_mbot_services.sh
     ```
 
-7. Configure the Raspberry Pi to enable SSH and use X11 (needed for NoMachine):
+8. Configure the Raspberry Pi to enable SSH and use X11 (needed for NoMachine):
    ```bash
    sudo raspi-config
    ```
    Then from the menu, change two configurations:
    * Interface Options -> SSH -> Enable
    * Advanced Options -> Wayland -> X11 (important for NoMachine)
-
-8. Install the firmware upload script
-    ```bash
-    sudo cp mbot-upload-firmware /usr/local/bin
-    ```
      
 9. Reboot.
 
