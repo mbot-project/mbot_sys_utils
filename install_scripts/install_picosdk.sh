@@ -9,8 +9,13 @@ cd pico-sdk && git submodule update --init
 # git checkout master
 git pull
 cd ../../
-# install picotool
+
+# Set PICO_SDK_PATH for the current script session
+export PICO_SDK_PATH="$PWD/lib/pico-sdk"
+# Set PICO_SDK_PATH in .bashrc
 echo "export PICO_SDK_PATH=$PWD/lib/pico-sdk" >> ~/.bashrc
+
+# install picotool
 wget https://github.com/raspberrypi/picotool/archive/refs/tags/1.1.1.zip
 unzip 1.1.1.zip
 cd picotool-1.1.1
