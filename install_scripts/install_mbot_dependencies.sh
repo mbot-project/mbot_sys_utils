@@ -22,6 +22,9 @@ apt -y install python3-dev python3-numpy python3-matplotlib python3-opencv pytho
 # Install python pkgs for MBot OLED
 apt -y install python3-qrcode python3-luma.oled
 
+# Install firmware upload script
+sudo cp mbot-upload-firmware /usr/local/bin
+
 #### Enable features for specific platforms ####
 # Check if running on RPi
 if grep -q "Raspberry Pi" /proc/device-tree/model; then
