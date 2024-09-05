@@ -40,19 +40,16 @@ You will need to clone this repository after first boot. Then, follow these step
     ```bash
     sudo nano [/boot/mbot_config.txt, /boot/firmware/mbot_config.txt]
     ```
-
 5. Install udev rules:
     ```bash
     cd udev_rules
     ./install_rules.sh
     ```
-
 6. Install services:
     ```bash
     cd services
     ./install_mbot_services.sh
     ```
-
 7. Configure the Raspberry Pi to enable SSH and use X11 (needed for NoMachine):
    ```bash
    sudo raspi-config
@@ -60,7 +57,7 @@ You will need to clone this repository after first boot. Then, follow these step
    Then from the menu, change two configurations:
    * Interface Options -> SSH -> Enable
    * Advanced Options -> Wayland -> X11 (important for NoMachine)
-    
+     
 8. Reboot.
 
 You're done! The robot should now have the networking services installed and should either connect to the configured network or start up an access point.
