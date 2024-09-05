@@ -17,7 +17,6 @@ You will need to clone this repository after first boot. Then, follow these step
     ```bash
     sudo ./install_scripts/install_mbot_dependencies.sh
     ./install_scripts/install_lcm.sh
-    ./install_scripts/install_picotool.sh
     ```
 
 2. Optional installs:
