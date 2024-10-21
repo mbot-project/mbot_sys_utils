@@ -4,21 +4,39 @@ import re
 import time
 import qrcode
 import math
+import logging
 
 from luma.core.interface.serial import i2c
 from luma.core.render import canvas
 from luma.oled.device import ssd1306
 from PIL import ImageFont
 
-fontpath = str("/usr/local/etc/arial.ttf")
-font = ImageFont.truetype(fontpath, 14)
-fontpath = str("/usr/local/etc/arial.ttf")
-font_small = ImageFont.truetype(fontpath, 10)
+# Setup logging
+log_file = "/var/log/mbot/mbot_oled.log"
+os.makedirs(os.path.dirname(log_file), exist_ok=True)
+logging.basicConfig(filename=log_file, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-device = ssd1306(i2c(port=1, address=0x3C))
+# Define fonts
+try:
+    fontpath = str("/usr/local/etc/arial.ttf")
+    font = ImageFont.truetype(fontpath, 14)
+    font_small = ImageFont.truetype(fontpath, 10)
+except Exception as e:
+    logging.error(f"Failed to load fonts: {e}")
+    font = None
+    font_small = None
+
+# Initialize OLED device
+try:
+    device = ssd1306(i2c(port=1, address=0x3C))
+except Exception as e:
+    logging.error(f"Failed to initialize OLED device: {e}")
+    device = None
 
 SCREEN_CHANGE_DELAY = 3
 QR_SCREEN_CHANGE_DELAY = 8
+
+serv_short_names = ["start-net", "pub-info", "lidar-drv", "lcm-ser", "webapp", "motion", "slam", "oled"]
 
 # ---------------------------------------------Information fetching------------------------------------------------------
 
@@ -30,20 +48,21 @@ def get_wlan0_ip():
         # Use regular expressions to find the IP address in the output
         ip_match = re.search(r'inet ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)', command_output)
         if ip_match:
-            ip_address = ip_match.group(1)
-            return ip_address
+            return ip_match.group(1)
         else:
-            return None
+            return "IP Not Found"
     except Exception as e:
-        return str(e)
-    
+        logging.error(f"Failed to get wlan0 IP: {e}")
+        return "Error"
+
 def get_hostname():
     try:
         command_output = os.popen("hostname").read()
         return command_output.strip()
     except Exception as e:
-        return str(e)
-    
+        logging.error(f"Failed to get hostname: {e}")
+        return "Error"
+
 def get_uptime():
     try:
         uptime_output = os.popen("uptime -p").read().strip()
@@ -66,8 +85,9 @@ def get_uptime():
         else:
             return uptime_output[3:]
     except Exception as e:
-        return str(e)
-    
+        logging.error(f"Failed to get uptime: {e}")
+        return "Error"
+
 def get_connected_ssid():
     try:
         # Execute the iwgetid command and capture the output
@@ -76,21 +96,24 @@ def get_connected_ssid():
             ssid_output = "N/A"
         return ssid_output
     except Exception as e:
-        return str(e)
+        logging.error(f"Failed to get connected SSID: {e}")
+        return "Error"
 
 def get_mem_free():
     try:
         mem_output = os.popen("free -m | awk 'NR==2{printf \"%.2f%%\", $3*100/$2 }'").read()
         return mem_output
     except Exception as e:
-        return str(e)
-    
+        logging.error(f"Failed to get memory usage: {e}")
+        return "Error"
+
 def get_load_avg():
     try:
         load_output = os.popen("top -bn1 | grep load | awk '{print \"\", $11, $12, $13}'").read()
         return load_output
     except Exception as e:
-        return str(e)
+        logging.error(f"Failed to get load average: {e}")
+        return "Error"
 
 def get_QR_code(IP: str):
     qr = qrcode.QRCode(
@@ -105,24 +128,28 @@ def get_QR_code(IP: str):
     qr_img = qr_img.resize((64, 64))
     return qr_img
 
-services=["mbot-start-network", "mbot-publish-info", "mbot-rplidar-driver", 
-          "mbot-lcm-serial", "mbot-web-server", "mbot-motion-controller", "mbot-slam", "mbot-oled"]
-serv_short_names = ["start-net", "pub-info", "lidar-drv", "lcm-ser", "webapp", "motion", "slam", "oled"]
 def get_services():
-    result = dict()
-    for i, service in enumerate(services):
-        serv_status = os.popen("systemctl status " + service + " | head -3 | tail -1").read()
-        if not serv_status:
-            result[serv_short_names[i]] = "not found"
-        else:
-            keywords = ["loaded", "failed", "active", "inactive"]
-            activity_str = serv_status.split()[1] if serv_status.split()[1] in keywords else serv_status.split()[2]
-            result[serv_short_names[i]] = activity_str
-            if activity_str != "failed":
-                result[serv_short_names[i]] += " " + serv_status.split()[2]
+    try:
+        services = ["mbot-start-network", "mbot-publish-info", "mbot-rplidar-driver", 
+                    "mbot-lcm-serial", "mbot-web-server", "mbot-motion-controller", "mbot-slam", "mbot-oled"]
+        serv_short_names = ["start-net", "pub-info", "lidar-drv", "lcm-ser", "webapp", "motion", "slam", "oled"]
+        result = dict()
+        for i, service in enumerate(services):
+            serv_status = os.popen(f"systemctl status {service} | head -3 | tail -1").read().strip()
+            if not serv_status:
+                result[serv_short_names[i]] = "not found"
             else:
-                result[serv_short_names[i]] += " (" + serv_status.split()[3]
-    return result
+                keywords = ["loaded", "failed", "active", "inactive"]
+                activity_str = serv_status.split()[1] if serv_status.split()[1] in keywords else serv_status.split()[2]
+                result[serv_short_names[i]] = activity_str
+                if activity_str != "failed":
+                    result[serv_short_names[i]] += f" {serv_status.split()[2]}"
+                else:
+                    result[serv_short_names[i]] += f" ({serv_status.split()[3]})"
+        return result
+    except Exception as e:
+        logging.error(f"Failed to get services: {e}")
+        return {}
 
 #-----------------------------------------------Data Screens-------------------------------------------
 
@@ -190,14 +217,26 @@ def screen_services():
        
 
 def main():
+    if device is None or font is None or font_small is None:
+        logging.error("Initialization failed. Exiting application.")
+        return
+
+    logged_service_start = False
     while True:
-        screen_wifi()
-        time.sleep(SCREEN_CHANGE_DELAY)
-        screen_QR()
-        time.sleep(QR_SCREEN_CHANGE_DELAY)
-        screen_resources()
-        time.sleep(SCREEN_CHANGE_DELAY)
-        screen_services()
+        try:
+            screen_wifi()
+            time.sleep(SCREEN_CHANGE_DELAY)
+            screen_QR()
+            time.sleep(QR_SCREEN_CHANGE_DELAY)
+            screen_resources()
+            time.sleep(SCREEN_CHANGE_DELAY)
+            screen_services()
+            if not logged_service_start:
+                logging.info("OLED service started successfully.")
+                logged_service_start = True
+        except Exception as e:
+            logging.error(f"Unhandled exception during main loop: {e}")
+            break
 
 if __name__ == '__main__':
     main()
