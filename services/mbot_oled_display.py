@@ -11,8 +11,26 @@ from luma.core.render import canvas
 from luma.oled.device import ssd1306
 from PIL import ImageFont
 
-# this requires you to install mbot_lcm_base first
-from mbot_lcm_msgs.mbot_analog_t import mbot_analog_t
+# Defind constants
+SCREEN_CHANGE_DELAY = 3
+QR_SCREEN_CHANGE_DELAY = 8
+DIS_WIDTH = 128 # OLED display width, in pixels
+DIS_HEIGHT = 64 # OLED display height, in pixels
+BATTERY_LIMIT = 7 # Volts
+
+# Define global variable
+serv_short_names = ["start-net", "pub-info", "lidar-drv", "lcm-ser", "webapp", "motion", "slam", "oled"]
+battery_voltage = -1
+ip_str = "IP Not Found"
+mbot_lcm_installed = False
+
+# Import mbot_lcm_msgs if available
+try:
+    from mbot_lcm_msgs.mbot_analog_t import mbot_analog_t
+    mbot_lcm_installed = True
+except ImportError:
+    mbot_lcm_installed = False
+    logging.warning("ImportError. Battery information will not be available.")
 
 # Setup logging
 log_file = "/var/log/mbot/mbot_oled.log"
@@ -42,17 +60,6 @@ try:
 except Exception as e:
     logging.error(f"Failed to initialize OLED device: {e}")
     device = None
-
-SCREEN_CHANGE_DELAY = 3
-QR_SCREEN_CHANGE_DELAY = 8
-DIS_WIDTH = 128 # OLED display width, in pixels
-DIS_HEIGHT = 64 # OLED display height, in pixels
-BATTERY_LIMIT = 8 # Volts
-
-# Define global variable
-serv_short_names = ["start-net", "pub-info", "lidar-drv", "lcm-ser", "webapp", "motion", "slam", "oled"]
-battery_voltage = -1
-ip_str = "IP Not Found"
 
 # ---------------------------------------------Information fetching------------------------------------------------------
 
@@ -169,9 +176,10 @@ def get_services():
         return {}
 
 def battery_info_callback(channel, data):
-    global battery_voltage
-    battery_info = mbot_analog_t.decode(data)
-    battery_voltage = battery_info.volts[3]
+    if mbot_lcm_installed:
+        global battery_voltage
+        battery_info = mbot_analog_t.decode(data)
+        battery_voltage = battery_info.volts[3]
 
 #-----------------------------------------------Data Screens-------------------------------------------
 
@@ -231,7 +239,10 @@ def screen_services():
 def screen_battery():
     with canvas(device) as draw:
         draw.text((1, 1), "Battery Info", font=font, fill="white")
-        draw.text((1, 24), f"Voltage: {battery_voltage:.2f} V", font=font, fill="white")
+        if mbot_lcm_installed:
+            draw.text((1, 24), f"Voltage: {battery_voltage:.2f} V", font=font, fill="white")
+        else:
+            draw.text((1, 24), f"Not Available", font=font, fill="white")
         draw.line((0, 48, 127, 48), fill="white")
         draw.text((1, 49), ip_str, font=font, fill="white")
 
@@ -248,10 +259,14 @@ def main():
     while True:
         try:
             lc.handle()
-            if battery_voltage > BATTERY_LIMIT:
-                get_wlan0_ip()  # Update the global IP address
+            if mbot_lcm_installed:
+                if battery_voltage > BATTERY_LIMIT:
+                    get_wlan0_ip()  # Update the global IP address
+                else:
+                    ip_str = "Low Battery"+f" {battery_voltage:.2f}"
             else:
-                ip_str = "Low Battery"+f" {battery_voltage}"
+                get_wlan0_ip()  # Update the global IP address
+
             screen_wifi()
             time.sleep(SCREEN_CHANGE_DELAY)
             screen_battery()
