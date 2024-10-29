@@ -5,11 +5,14 @@ import time
 import qrcode
 import math
 import logging
-
+import lcm
 from luma.core.interface.serial import i2c
 from luma.core.render import canvas
 from luma.oled.device import ssd1306
 from PIL import ImageFont
+
+# this requires you to install mbot_lcm_base first
+from mbot_lcm_msgs.mbot_analog_t import mbot_analog_t
 
 # Setup logging
 log_file = "/var/log/mbot/mbot_oled.log"
@@ -44,25 +47,30 @@ SCREEN_CHANGE_DELAY = 3
 QR_SCREEN_CHANGE_DELAY = 8
 DIS_WIDTH = 128 # OLED display width, in pixels
 DIS_HEIGHT = 64 # OLED display height, in pixels
+BATTERY_LIMIT = 8 # Volts
 
+# Define global variable
 serv_short_names = ["start-net", "pub-info", "lidar-drv", "lcm-ser", "webapp", "motion", "slam", "oled"]
+battery_voltage = -1
+ip_str = "IP Not Found"
 
 # ---------------------------------------------Information fetching------------------------------------------------------
 
 # Function to get the IP address of the wlan0 interface
 def get_wlan0_ip():
+    global ip_str
     try:
         # Execute the ifconfig command and capture the output
         command_output = os.popen("ifconfig wlan0").read()
         # Use regular expressions to find the IP address in the output
         ip_match = re.search(r'inet ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)', command_output)
         if ip_match:
-            return ip_match.group(1)
+            ip_str = ip_match.group(1)
         else:
-            return None
+            ip_str = "IP Not Found"
     except Exception as e:
         logging.error(f"Failed to get wlan0 IP: {e}")
-        return "Error"
+        ip_str = "Error"
 
 def get_hostname():
     try:
@@ -139,7 +147,7 @@ def get_QR_code(IP: str):
 
 def get_services():
     try:
-        services = ["mbot-start-network", "mbot-publish-info", "mbot-rplidar-driver", 
+        services = ["mbot-start-network", "mbot-publish-info", "mbot-rplidar-driver",
                     "mbot-lcm-serial", "mbot-web-server", "mbot-motion-controller", "mbot-slam", "mbot-oled"]
         serv_short_names = ["start-net", "pub-info", "lidar-drv", "lcm-ser", "webapp", "motion", "slam", "oled"]
         result = dict()
@@ -160,43 +168,37 @@ def get_services():
         logging.error(f"Failed to get services: {e}")
         return {}
 
+def battery_info_callback(channel, data):
+    global battery_voltage
+    battery_info = mbot_analog_t.decode(data)
+    battery_voltage = battery_info.volts[3]
+
 #-----------------------------------------------Data Screens-------------------------------------------
 
 def screen_wifi():
     #Get SSID
     SSID_str = get_connected_ssid()
-    #Get IP
-    IP_str = get_wlan0_ip()
-    if IP_str is None:
-        IP_str = "IP Not Found"
     #Get Hostname
     hostname_str = get_hostname()
     #Get uptime
     uptime_str = get_uptime()
-    
+
     # print it
     with canvas(device) as draw:
         draw.text((1,1), hostname_str, font=font, fill="white")
         draw.text((1,17), "SSID: "+ SSID_str, font=font, fill="white")
         draw.text((1,33), "Uptime: "+ uptime_str, font=font_small, fill="white")
         draw.line((0, 48, 127, 48), fill="white")
-        draw.text((1,49), IP_str, font=font, fill="white")
+        draw.text((1,49), ip_str, font=font, fill="white")
 
 def screen_QR():
-    #Get IP
-    IP_str = get_wlan0_ip()
-    if IP_str is None:
-        with canvas(device) as draw:
-            draw.text((1, 49), "IP Not Found", font=font, fill="white")
-        return
-
     #Get QR code
-    qr_img = get_QR_code("http://"+IP_str)
+    qr_img = get_QR_code("http://"+ip_str)
     qr_x_pos = (DIS_WIDTH - 48)  # right aligned
-  
+
     with canvas(device) as draw:
         draw.text((1,1), "WebApp", font=font, fill="white")
-        draw.text((1,49), IP_str, font=font, fill="white")
+        draw.text((1,49), ip_str, font=font, fill="white")
         draw.line((0, 48, 127, 48), fill="white")
         draw.bitmap((qr_x_pos, 0), qr_img, fill="white")
 
@@ -205,23 +207,16 @@ def screen_resources():
     mem_str = get_mem_free()
     #Get load avg
     load_avg_str = get_load_avg()
-    IP_str = get_wlan0_ip()
-    if IP_str is None:
-        IP_str = "IP Not Found"
     with canvas(device) as draw:
         draw.text((1,1), "Load Average: ", font=font_small, fill="white")
         draw.text((20,17), load_avg_str, font=font_small, fill="white")
         draw.text((1,33), "RAM Used: " + mem_str, font=font_small, fill="white")
         draw.line((0, 48, 127, 48), fill="white")
-        draw.text((1,49), IP_str, font=font, fill="white")
-
+        draw.text((1,49), ip_str, font=font, fill="white")
 
 def screen_services():
     services = get_services()
     n_screens = math.ceil(len(services) / 3)
-    IP_str = get_wlan0_ip()
-    if IP_str is None:
-        IP_str = "IP Not Found"
     for i in range(n_screens):
         with canvas(device) as draw:
             draw.text((1,1), serv_short_names[3*i] + ": " + services[serv_short_names[3*i]], font=font_small, fill="white")
@@ -230,19 +225,36 @@ def screen_services():
             if 3*i+2 < len(services):
                 draw.text((1,33), serv_short_names[3*i+2] + ": " + services[serv_short_names[3*i+2]], font=font_small, fill="white")
             draw.line((0, 48, 127, 48), fill="white")
-            draw.text((1,49), IP_str, font=font, fill="white")
+            draw.text((1,49), ip_str, font=font, fill="white")
         time.sleep(SCREEN_CHANGE_DELAY)
-       
+
+def screen_battery():
+    with canvas(device) as draw:
+        draw.text((1, 1), "Battery Info", font=font, fill="white")
+        draw.text((1, 24), f"Voltage: {battery_voltage:.2f} V", font=font, fill="white")
+        draw.line((0, 48, 127, 48), fill="white")
+        draw.text((1, 49), ip_str, font=font, fill="white")
 
 def main():
     if device is None or font is None or font_small is None:
         logging.error("Initialization failed. Exiting application.")
         return
 
+    lc = lcm.LCM("udpm://239.255.76.67:7667?ttl=0")
+    lc.subscribe("MBOT_ANALOG_IN", battery_info_callback)
+
     logged_service_start = False
+    global ip_str
     while True:
         try:
+            lc.handle()
+            if battery_voltage > BATTERY_LIMIT:
+                get_wlan0_ip()  # Update the global IP address
+            else:
+                ip_str = "Low Battery"+f" {battery_voltage}"
             screen_wifi()
+            time.sleep(SCREEN_CHANGE_DELAY)
+            screen_battery()
             time.sleep(SCREEN_CHANGE_DELAY)
             screen_QR()
             time.sleep(QR_SCREEN_CHANGE_DELAY)
