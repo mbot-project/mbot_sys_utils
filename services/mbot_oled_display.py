@@ -258,12 +258,16 @@ def main():
     global ip_str
     while True:
         try:
-            lc.handle()
+            lcm_result = lc.handle_timeout(100)  # Timeout in milliseconds
+            if lcm_result <= 0:
+                logging.warning("LCM handle timeout or no messages received.")
+
+            # Battery voltage handling and IP fetching logic
             if mbot_lcm_installed:
-                if battery_voltage > BATTERY_LIMIT:
+                if battery_voltage > BATTERY_LIMIT or battery_voltage == -1:
                     get_wlan0_ip()  # Update the global IP address
                 else:
-                    ip_str = "Low Battery"+f" {battery_voltage:.2f}"
+                    ip_str = "Low Battery" + f" {battery_voltage:.2f}"
             else:
                 get_wlan0_ip()  # Update the global IP address
 
