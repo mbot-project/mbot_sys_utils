@@ -6,31 +6,19 @@ import qrcode
 import math
 import logging
 import lcm
+import subprocess
 from luma.core.interface.serial import i2c
 from luma.core.render import canvas
 from luma.oled.device import ssd1306
 from PIL import ImageFont
+from logging.handlers import RotatingFileHandler
 
-# Defind constants
+# Define constants
 SCREEN_CHANGE_DELAY = 3
 QR_SCREEN_CHANGE_DELAY = 8
-DIS_WIDTH = 128 # OLED display width, in pixels
-DIS_HEIGHT = 64 # OLED display height, in pixels
-BATTERY_LIMIT = 7 # Volts
-
-# Define global variable
-serv_short_names = ["start-net", "pub-info", "lidar-drv", "lcm-ser", "webapp", "motion", "slam", "oled"]
-battery_voltage = -1
-ip_str = "IP Not Found"
-mbot_lcm_installed = False
-
-# Import mbot_lcm_msgs if available
-try:
-    from mbot_lcm_msgs.mbot_analog_t import mbot_analog_t
-    mbot_lcm_installed = True
-except ImportError:
-    mbot_lcm_installed = False
-    logging.warning("ImportError. Battery information will not be available.")
+DIS_WIDTH = 128  # OLED display width, in pixels
+DIS_HEIGHT = 64  # OLED display height, in pixels
+BATTERY_LIMIT = 9  # Volts
 
 # Setup logging
 log_file = "/var/log/mbot/mbot_oled.log"
@@ -39,254 +27,256 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler(log_file),
+        RotatingFileHandler(log_file, maxBytes=5*1024*1024, backupCount=3),
         logging.StreamHandler()
     ]
 )
 
-# Define fonts
-try:
-    fontpath = str("/usr/local/etc/arial.ttf")
-    font = ImageFont.truetype(fontpath, 14)
-    font_small = ImageFont.truetype(fontpath, 10)
-except Exception as e:
-    logging.error(f"Failed to load fonts: {e}")
-    font = None
-    font_small = None
-
-# Initialize OLED device
-try:
-    device = ssd1306(i2c(port=1, address=0x3C))
-except Exception as e:
-    logging.error(f"Failed to initialize OLED device: {e}")
-    device = None
-
-# ---------------------------------------------Information fetching------------------------------------------------------
-
-# Function to get the IP address of the wlan0 interface
-def get_wlan0_ip():
-    global ip_str
-    try:
-        # Execute the ifconfig command and capture the output
-        command_output = os.popen("ifconfig wlan0").read()
-        # Use regular expressions to find the IP address in the output
-        ip_match = re.search(r'inet ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)', command_output)
-        if ip_match:
-            ip_str = ip_match.group(1)
-        else:
-            ip_str = "IP Not Found"
-    except Exception as e:
-        logging.error(f"Failed to get wlan0 IP: {e}")
-        ip_str = "Error"
-
-def get_hostname():
-    try:
-        command_output = os.popen("hostname").read()
-        return command_output.strip()
-    except Exception as e:
-        logging.error(f"Failed to get hostname: {e}")
-        return "Error"
-
-def get_uptime():
-    try:
-        uptime_output = os.popen("uptime -p").read().strip()
-        # Use regular expressions to extract hours and minutes
-        pattern = r'up (\d+) hour[s]*, (\d+) minute[s]*|up (\d+) minute[s]*'
-        match = re.match(pattern, uptime_output)
-
-        if match:
-            # Extract hours and minutes
-            hours, minutes, minutes_only = match.groups()
-
-            if minutes_only is not None:
-                # If only minutes are provided
-                formatted_str = f'{minutes_only}m'
-            else:
-                # If both hours and minutes are provided
-                formatted_str = f'{hours}h{minutes}m'
-
-            return formatted_str
-        else:
-            return uptime_output[3:]
-    except Exception as e:
-        logging.error(f"Failed to get uptime: {e}")
-        return "Error"
-
-def get_connected_ssid():
-    try:
-        # Execute the iwgetid command and capture the output
-        ssid_output = os.popen("iwgetid -r").read().strip()
-        if not ssid_output:
-            ssid_output = "N/A"
-        return ssid_output
-    except Exception as e:
-        logging.error(f"Failed to get connected SSID: {e}")
-        return "Error"
-
-def get_mem_free():
-    try:
-        mem_output = os.popen("free -m | awk 'NR==2{printf \"%.2f%%\", $3*100/$2 }'").read()
-        return mem_output
-    except Exception as e:
-        logging.error(f"Failed to get memory usage: {e}")
-        return "Error"
-
-def get_load_avg():
-    try:
-        load_output = os.popen("top -bn1 | grep load | awk '{print \"\", $11, $12, $13}'").read()
-        return load_output
-    except Exception as e:
-        logging.error(f"Failed to get load average: {e}")
-        return "Error"
-
-def get_QR_code(IP: str):
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=10,
-        border=4,
-    )
-    qr.add_data(IP)
-    qr.make(fit=True)
-    qr_img = qr.make_image(fill_color="black", back_color="white")
-    qr_img = qr_img.resize((48,48))
-    return qr_img
-
-def get_services():
-    try:
-        services = ["mbot-start-network", "mbot-publish-info", "mbot-rplidar-driver",
-                    "mbot-lcm-serial", "mbot-web-server", "mbot-motion-controller", "mbot-slam", "mbot-oled"]
-        serv_short_names = ["start-net", "pub-info", "lidar-drv", "lcm-ser", "webapp", "motion", "slam", "oled"]
-        result = dict()
-        for i, service in enumerate(services):
-            serv_status = os.popen(f"systemctl status {service} | head -3 | tail -1").read().strip()
-            if not serv_status:
-                result[serv_short_names[i]] = "not found"
-            else:
-                keywords = ["loaded", "failed", "active", "inactive"]
-                activity_str = serv_status.split()[1] if serv_status.split()[1] in keywords else serv_status.split()[2]
-                result[serv_short_names[i]] = activity_str
-                if activity_str != "failed":
-                    result[serv_short_names[i]] += f" {serv_status.split()[2]}"
-                else:
-                    result[serv_short_names[i]] += f" ({serv_status.split()[3]})"
-        return result
-    except Exception as e:
-        logging.error(f"Failed to get services: {e}")
-        return {}
-
-def battery_info_callback(channel, data):
-    if mbot_lcm_installed:
-        global battery_voltage
-        battery_info = mbot_analog_t.decode(data)
-        battery_voltage = battery_info.volts[3]
-
-#-----------------------------------------------Data Screens-------------------------------------------
-
-def screen_wifi():
-    #Get SSID
-    SSID_str = get_connected_ssid()
-    #Get Hostname
-    hostname_str = get_hostname()
-    #Get uptime
-    uptime_str = get_uptime()
-
-    # print it
-    with canvas(device) as draw:
-        draw.text((1,1), hostname_str, font=font, fill="white")
-        draw.text((1,17), "SSID: "+ SSID_str, font=font, fill="white")
-        draw.text((1,33), "Uptime: "+ uptime_str, font=font_small, fill="white")
-        draw.line((0, 48, 127, 48), fill="white")
-        draw.text((1,49), ip_str, font=font, fill="white")
-
-def screen_QR():
-    #Get QR code
-    qr_img = get_QR_code("http://"+ip_str)
-    qr_x_pos = (DIS_WIDTH - 48)  # right aligned
-
-    with canvas(device) as draw:
-        draw.text((1,1), "WebApp", font=font, fill="white")
-        draw.text((1,49), ip_str, font=font, fill="white")
-        draw.line((0, 48, 127, 48), fill="white")
-        draw.bitmap((qr_x_pos, 0), qr_img, fill="white")
-
-def screen_resources():
-    #Get Mem
-    mem_str = get_mem_free()
-    #Get load avg
-    load_avg_str = get_load_avg()
-    with canvas(device) as draw:
-        draw.text((1,1), "Load Average: ", font=font_small, fill="white")
-        draw.text((20,17), load_avg_str, font=font_small, fill="white")
-        draw.text((1,33), "RAM Used: " + mem_str, font=font_small, fill="white")
-        draw.line((0, 48, 127, 48), fill="white")
-        draw.text((1,49), ip_str, font=font, fill="white")
-
-def screen_services():
-    services = get_services()
-    n_screens = math.ceil(len(services) / 3)
-    for i in range(n_screens):
-        with canvas(device) as draw:
-            draw.text((1,1), serv_short_names[3*i] + ": " + services[serv_short_names[3*i]], font=font_small, fill="white")
-            if 3*i+1 < len(services):
-                draw.text((1,17), serv_short_names[3*i+1] + ": " + services[serv_short_names[3*i+1]], font=font_small, fill="white")
-            if 3*i+2 < len(services):
-                draw.text((1,33), serv_short_names[3*i+2] + ": " + services[serv_short_names[3*i+2]], font=font_small, fill="white")
-            draw.line((0, 48, 127, 48), fill="white")
-            draw.text((1,49), ip_str, font=font, fill="white")
-        time.sleep(SCREEN_CHANGE_DELAY)
-
-def screen_battery():
-    with canvas(device) as draw:
-        draw.text((1, 1), "Battery Info", font=font, fill="white")
-        if mbot_lcm_installed:
-            draw.text((1, 24), f"Voltage: {battery_voltage:.2f} V", font=font, fill="white")
-        else:
-            draw.text((1, 24), f"Not Available", font=font, fill="white")
-        draw.line((0, 48, 127, 48), fill="white")
-        draw.text((1, 49), ip_str, font=font, fill="white")
-
-def main():
-    if device is None or font is None or font_small is None:
-        logging.error("Initialization failed. Exiting application.")
-        return
-
-    lc = lcm.LCM("udpm://239.255.76.67:7667?ttl=0")
-    lc.subscribe("MBOT_ANALOG_IN", battery_info_callback)
-
-    logged_service_start = False
-    global ip_str
-    while True:
+class MBotOLED:
+    def __init__(self):
+        # Initialize OLED device and fonts
         try:
-            lcm_result = lc.handle_timeout(100)  # Timeout in milliseconds
-            if lcm_result <= 0:
-                logging.warning("LCM handle timeout or no messages received.")
-
-            # Battery voltage handling and IP fetching logic
-            if mbot_lcm_installed:
-                if battery_voltage > BATTERY_LIMIT or battery_voltage == -1:
-                    get_wlan0_ip()  # Update the global IP address
-                else:
-                    ip_str = "Low Battery" + f" {battery_voltage:.2f}"
-            else:
-                get_wlan0_ip()  # Update the global IP address
-
-            screen_wifi()
-            time.sleep(SCREEN_CHANGE_DELAY)
-            screen_battery()
-            time.sleep(SCREEN_CHANGE_DELAY)
-            screen_QR()
-            time.sleep(QR_SCREEN_CHANGE_DELAY)
-            screen_resources()
-            time.sleep(SCREEN_CHANGE_DELAY)
-            screen_services()
-            if not logged_service_start:
-                logging.info("OLED service started successfully.")
-                logged_service_start = True
+            self.device = ssd1306(i2c(port=1, address=0x3C))
+            self.font = ImageFont.truetype("/usr/local/etc/arial.ttf", 14)
+            self.font_small = ImageFont.truetype("/usr/local/etc/arial.ttf", 10)
         except Exception as e:
-            logging.error(f"Unhandled exception during main loop: {e}")
-            time.sleep(5) # in case just a glitch
-            continue
+            logging.error(f"Initialization failed: {e}")
+            self.device = None
+            self.font = None
+            self.font_small = None
+
+        # Set up LCM if available
+        self.lc = lcm.LCM("udpm://239.255.76.67:7667?ttl=0") if lcm else None
+        self.battery_voltage = -1
+        self.ip_str = "IP Not Found"
+        self.mbot_lcm_installed = self.check_mbot_lcm_installed()
+
+    def check_mbot_lcm_installed(self):
+        try:
+            from mbot_lcm_msgs.mbot_analog_t import mbot_analog_t
+            self.mbot_analog_t = mbot_analog_t
+            return True
+        except ImportError:
+            logging.warning("ImportError. Battery information will not be available.")
+            return False
+
+    def draw(self, draw_func):
+        if self.device:
+            with canvas(self.device) as draw:
+                draw_func(draw)
+
+    # Information Fetching Methods
+    def get_hostname(self):
+        try:
+            return subprocess.check_output(["hostname"]).decode().strip()
+        except subprocess.CalledProcessError as e:
+            logging.error(f"Failed to get hostname: {e}")
+            return "Error"
+
+    def get_uptime(self):
+        try:
+            uptime_output = subprocess.check_output(["uptime", "-p"]).decode().strip()
+            pattern = r'up (\d+) hour[s]*, (\d+) minute[s]*|up (\d+) minute[s]*'
+            match = re.match(pattern, uptime_output)
+
+            if match:
+                hours, minutes, minutes_only = match.groups()
+                return f'{minutes_only}m' if minutes_only else f'{hours}h{minutes}m'
+            else:
+                return uptime_output[3:]
+        except subprocess.CalledProcessError as e:
+            logging.error(f"Failed to get uptime: {e}")
+            return "Error"
+
+    def get_connected_ssid(self):
+        try:
+            return subprocess.check_output(["iwgetid", "-r"]).decode().strip() or "N/A"
+        except subprocess.CalledProcessError as e:
+            logging.error(f"Failed to get connected SSID: {e}")
+            return "Error"
+
+    def get_mem_free(self):
+        try:
+            mem_output = subprocess.check_output("free -m | awk 'NR==2{printf \"%.2f%%\", $3*100/$2 }'", shell=True).decode().strip()
+            return mem_output
+        except subprocess.CalledProcessError as e:
+            logging.error(f"Failed to get memory usage: {e}")
+            return "Error"
+
+    def get_load_avg(self):
+        try:
+            load_output = subprocess.check_output(["top", "-bn1"]).decode()
+            return re.search(r'load average: (.*)', load_output).group(1)
+        except (subprocess.CalledProcessError, AttributeError) as e:
+            logging.error(f"Failed to get load average: {e}")
+            return "Error"
+
+    def get_wlan0_ip(self):
+        try:
+            command_output = subprocess.check_output(["ifconfig", "wlan0"]).decode()
+            ip_match = re.search(r'inet ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)', command_output)
+            self.ip_str = ip_match.group(1) if ip_match else "IP Not Found"
+        except subprocess.CalledProcessError as e:
+            logging.error(f"Failed to get wlan0 IP: {e}")
+            self.ip_str = "Error"
+
+    def get_services(self):
+        try:
+            services = ["mbot-start-network", "mbot-publish-info", "mbot-rplidar-driver",
+                        "mbot-lcm-serial", "mbot-web-server", "mbot-motion-controller", "mbot-slam", "mbot-oled"]
+            serv_short_names = ["start-net", "pub-info", "lidar-drv", "lcm-ser", "webapp", "motion", "slam", "oled"]
+            result = {}
+
+            for i, service in enumerate(services):
+                try:
+                    # Capture the status using subprocess and extract the third line equivalent
+                    serv_status = subprocess.check_output(
+                        f"systemctl status {service} | head -3 | tail -1",
+                        shell=True,
+                        stderr=subprocess.DEVNULL
+                    ).decode().strip()
+
+                    if not serv_status:
+                        result[serv_short_names[i]] = "not found"
+                    else:
+                        keywords = ["loaded", "failed", "active", "inactive"]
+                        parts = serv_status.split()
+                        activity_str = parts[1] if len(parts) > 1 and parts[1] in keywords else parts[2] if len(parts) > 2 else "unknown"
+                        result[serv_short_names[i]] = activity_str
+
+                        if activity_str != "failed" and len(parts) > 2:
+                            result[serv_short_names[i]] += f" {parts[2]}"
+                        elif activity_str == "failed" and len(parts) > 3:
+                            result[serv_short_names[i]] += f" ({parts[3]})"
+
+                except subprocess.CalledProcessError:
+                    result[serv_short_names[i]] = "failed"
+
+            return result
+
+        except Exception as e:
+            logging.error(f"Failed to get services: {e}")
+            return {}
+
+
+    def battery_info_callback(self, channel, data):
+        if self.mbot_lcm_installed:
+            battery_info = self.mbot_analog_t.decode(data)
+            self.battery_voltage = battery_info.volts[3]
+
+    # Screen Display Methods
+    def display_wifi_info(self):
+        ssid = self.get_connected_ssid()
+        hostname = self.get_hostname()
+        uptime = self.get_uptime()
+
+        def draw_wifi(draw):
+            draw.text((1, 1), hostname, font=self.font, fill="white")
+            draw.text((1, 17), f"SSID: {ssid}", font=self.font, fill="white")
+            draw.text((1, 33), f"Uptime: {uptime}", font=self.font_small, fill="white")
+            draw.line((0, 48, 127, 48), fill="white")
+            draw.text((1, 49), self.ip_str, font=self.font, fill="white")
+        self.draw(draw_wifi)
+
+    def display_qr_code(self):
+        qr_img = self.get_qr_code(f"http://{self.ip_str}")
+        qr_x_pos = (DIS_WIDTH - 48) # right aligned
+
+        def draw_qr(draw):
+            draw.text((1, 1), "WebApp", font=self.font, fill="white")
+            draw.text((1, 49), self.ip_str, font=self.font, fill="white")
+            draw.line((0, 48, 127, 48), fill="white")
+            draw.bitmap((qr_x_pos, 0), qr_img, fill="white")
+        self.draw(draw_qr)
+
+    def get_qr_code(self, ip_str):
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(ip_str)
+        qr.make(fit=True)
+        return qr.make_image(fill_color="black", back_color="white").resize((48, 48))
+
+    def display_resources(self):
+        mem_str = self.get_mem_free()
+        load_avg_str = self.get_load_avg()
+
+        def draw_resources(draw):
+            draw.text((1, 1), "Load Average: ", font=self.font_small, fill="white")
+            draw.text((20, 17), load_avg_str, font=self.font_small, fill="white")
+            draw.text((1, 33), f"RAM Used: {mem_str}", font=self.font_small, fill="white")
+            draw.line((0, 48, 127, 48), fill="white")
+            draw.text((1, 49), self.ip_str, font=self.font, fill="white")
+        self.draw(draw_resources)
+
+    def display_services(self):
+        services = self.get_services()
+        serv_short_names = ["start-net", "pub-info", "lidar-drv", "lcm-ser", "webapp", "motion", "slam", "oled"]
+        n_screens = math.ceil(len(services) / 3)
+
+        for i in range(n_screens):
+            def draw_services(draw):
+                draw.text((1, 1), f"{serv_short_names[3*i]}: {services.get(serv_short_names[3*i], 'not found')}", font=self.font_small, fill="white")
+                if 3*i+1 < len(services):
+                    draw.text((1, 17), f"{serv_short_names[3*i+1]}: {services.get(serv_short_names[3*i+1], 'not found')}", font=self.font_small, fill="white")
+                if 3*i+2 < len(services):
+                    draw.text((1, 33), f"{serv_short_names[3*i+2]}: {services.get(serv_short_names[3*i+2], 'not found')}", font=self.font_small, fill="white")
+                draw.line((0, 48, 127, 48), fill="white")
+                draw.text((1, 49), self.ip_str, font=self.font, fill="white")
+            self.draw(draw_services)
+            time.sleep(SCREEN_CHANGE_DELAY)
+
+    def display_battery_info(self):
+        def draw_battery(draw):
+            draw.text((1, 1), "Battery Info", font=self.font, fill="white")
+            if self.mbot_lcm_installed:
+                draw.text((1, 24), f"Voltage: {self.battery_voltage:.2f} V", font=self.font, fill="white")
+            else:
+                draw.text((1, 24), "Not Available", font=self.font, fill="white")
+            draw.line((0, 48, 127, 48), fill="white")
+            draw.text((1, 49), self.ip_str, font=self.font, fill="white")
+        self.draw(draw_battery)
+
+    def main_loop(self):
+        if self.device is None or self.font is None or self.font_small is None:
+            logging.error("Initialization failed. Exiting application.")
+            return
+
+        if self.lc:
+            self.lc.subscribe("MBOT_ANALOG_IN", self.battery_info_callback)
+
+        while True:
+            try:
+                if self.lc:
+                    self.lc.handle_timeout(100)
+
+                if self.mbot_lcm_installed:
+                    if self.battery_voltage > BATTERY_LIMIT or self.battery_voltage == -1:
+                        self.get_wlan0_ip()
+                    else:
+                        self.ip_str = f"Low Battery {self.battery_voltage:.2f}"
+                else:
+                    self.get_wlan0_ip()
+
+                self.display_wifi_info()
+                time.sleep(SCREEN_CHANGE_DELAY)
+                self.display_battery_info()
+                time.sleep(SCREEN_CHANGE_DELAY)
+                self.display_qr_code()
+                time.sleep(QR_SCREEN_CHANGE_DELAY)
+                self.display_resources()
+                time.sleep(SCREEN_CHANGE_DELAY)
+                self.display_services()
+                time.sleep(SCREEN_CHANGE_DELAY)
+
+            except Exception as e:
+                logging.error(f"Unhandled exception during main loop: {e}")
+                time.sleep(5)
+                continue
 
 if __name__ == '__main__':
-    main()
+    mbot_oled = MBotOLED()
+    mbot_oled.main_loop()
