@@ -19,6 +19,7 @@ QR_SCREEN_CHANGE_DELAY = 8
 DIS_WIDTH = 128  # OLED display width, in pixels
 DIS_HEIGHT = 64  # OLED display height, in pixels
 BATTERY_LIMIT = 9  # Volts
+FLASH_INTERVAL = 0.4  # Flash interval in seconds
 
 # Setup logging
 log_file = "/var/log/mbot/mbot_oled.log"
@@ -37,6 +38,7 @@ class MBotOLED:
         # Initialize OLED device and fonts
         try:
             self.device = ssd1306(i2c(port=1, address=0x3C))
+            self.font_large = ImageFont.truetype("/usr/local/etc/arial.ttf", 18)
             self.font = ImageFont.truetype("/usr/local/etc/arial.ttf", 14)
             self.font_small = ImageFont.truetype("/usr/local/etc/arial.ttf", 10)
         except Exception as e:
@@ -240,6 +242,24 @@ class MBotOLED:
             draw.text((1, 49), self.ip_str, font=self.font, fill="white")
         self.draw(draw_battery)
 
+    def flash_message(self, message):
+        invert = False
+        while True:
+            # Toggle inversion by switching text and background colors
+            if invert:
+                # Draw inverted (white background, black text)
+                self.draw(lambda draw: (
+                    draw.rectangle(self.device.bounding_box, outline="white", fill="white"),
+                    draw.text((1, 20), message, font=self.font_large, fill="black")
+                ))
+            else:
+                # Draw normal (black background, white text)
+                self.draw(lambda draw: draw.text((1, 20), message, font=self.font_large, fill="white"))
+
+            # Toggle invert flag and pause for FLASH_INTERVAL
+            invert = not invert
+            time.sleep(FLASH_INTERVAL)
+
     def main_loop(self):
         if self.device is None or self.font is None or self.font_small is None:
             logging.error("Initialization failed. Exiting application.")
@@ -257,7 +277,7 @@ class MBotOLED:
                     if self.battery_voltage > BATTERY_LIMIT or self.battery_voltage == -1:
                         self.get_wlan0_ip()
                     else:
-                        self.ip_str = f"Low Battery {self.battery_voltage:.2f}"
+                        self.flash_message("LOW BATTERY")
                 else:
                     self.get_wlan0_ip()
 
