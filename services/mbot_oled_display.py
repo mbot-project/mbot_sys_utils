@@ -7,6 +7,7 @@ import math
 import logging
 import lcm
 import subprocess
+import threading
 from luma.core.interface.serial import i2c
 from luma.core.render import canvas
 from luma.oled.device import ssd1306
@@ -52,6 +53,7 @@ class MBotOLED:
         self.battery_voltage = -1
         self.ip_str = "IP Not Found"
         self.mbot_lcm_installed = self.check_mbot_lcm_installed()
+        self.low_battery_flag = False
 
     def check_mbot_lcm_installed(self):
         try:
@@ -165,6 +167,8 @@ class MBotOLED:
         if self.mbot_lcm_installed:
             battery_info = self.mbot_analog_t.decode(data)
             self.battery_voltage = battery_info.volts[3]
+            if self.battery_voltage < BATTERY_LIMIT and self.battery_voltage != -1:
+                self.low_battery_flag = True
 
     # Screen Display Methods
     def display_wifi_info(self):
@@ -260,6 +264,11 @@ class MBotOLED:
             invert = not invert
             time.sleep(FLASH_INTERVAL)
 
+    def lcm_thread_func(self):
+        while True:
+            if self.lc:
+                self.lc.handle_timeout(10)
+
     def main_loop(self):
         if self.device is None or self.font is None or self.font_small is None:
             logging.error("Initialization failed. Exiting application.")
@@ -267,19 +276,16 @@ class MBotOLED:
 
         if self.lc:
             self.lc.subscribe("MBOT_ANALOG_IN", self.battery_info_callback)
+            lcm_thread = threading.Thread(target=self.lcm_thread_func)
+            lcm_thread.daemon = True
+            lcm_thread.start()
 
         while True:
             try:
-                if self.lc:
-                    self.lc.handle_timeout(100)
+                if self.mbot_lcm_installed and self.low_battery_flag:
+                    self.flash_message("LOW BATTERY")
 
-                if self.mbot_lcm_installed:
-                    if self.battery_voltage > BATTERY_LIMIT or self.battery_voltage == -1:
-                        self.get_wlan0_ip()
-                    else:
-                        self.flash_message("LOW BATTERY")
-                else:
-                    self.get_wlan0_ip()
+                self.get_wlan0_ip()
 
                 self.display_wifi_info()
                 time.sleep(SCREEN_CHANGE_DELAY)
