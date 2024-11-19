@@ -15,6 +15,7 @@ from PIL import ImageFont
 from logging.handlers import RotatingFileHandler
 
 # Battery = -1 means no message received
+# Battery in (0, 1.5) means missing jumper cap
 # Battery in (3.5, 5.5) means the barrel plug is unplugged
 # Battery in (6, 7) means the jumper cap is on 6 V
 # Battery in (7, 12) means the jumper cap is on 12 V
@@ -27,10 +28,12 @@ DIS_WIDTH = 128  # OLED display width, in pixels
 DIS_HEIGHT = 64  # OLED display height, in pixels
 BATTERY_LIMIT_HIGH = 12  # Volts
 BATTERY_LIMIT_LOW = 9
-JUMPER_CAP_6V_HIGH = 7
-JUMPER_CAP_6V_LOW = 6
+JUMPER_6V_HIGH = 7
+JUMPER_6V_LOW = 6
 UNPLUG_BARREL_HIGH = 5.5
 UNPLUG_BARREL_LOW = 3.5
+NO_CAP_HIGH = 1.5
+NO_CAP_LOW = 0
 
 # Setup logging
 log_file = "/var/log/mbot/mbot_oled.log"
@@ -182,7 +185,7 @@ class MBotOLED:
         if self.mbot_lcm_installed:
             battery_info = self.mbot_analog_t.decode(data)
             self.battery_voltage = battery_info.volts[3]
-            if self.battery_voltage < BATTERY_LIMIT_LOW and self.battery_voltage > JUMPER_CAP_6V_HIGH:
+            if self.battery_voltage < BATTERY_LIMIT_LOW and self.battery_voltage > JUMPER_6V_HIGH:
                 self.low_battery_flag = True
 
         self.last_message_time = time.time()
@@ -258,12 +261,15 @@ class MBotOLED:
             self.check_message_timeout()
         def draw_battery(draw):
             if self.mbot_lcm_installed:
-                if self.battery_voltage < JUMPER_CAP_6V_HIGH and self.battery_voltage > JUMPER_CAP_6V_LOW:
-                    draw.text((1, 1), "Motor Volt - 6V Cap", font=self.font_medium, fill="white")
-                    draw.text((1, 24), f"Reading: {self.battery_voltage:.2f} V", font=self.font_medium, fill="white")
+                if self.battery_voltage < JUMPER_6V_HIGH and self.battery_voltage > JUMPER_6V_LOW:
+                    draw.text((1, 1), "Voltage Select Jumper 6V", font=self.font_small, fill="white")
+                    draw.text((1, 24), f"Motor Volt: {self.battery_voltage:.2f} V", font=self.font_medium, fill="white")
                 elif self.battery_voltage < UNPLUG_BARREL_HIGH and self.battery_voltage > UNPLUG_BARREL_LOW:
                     draw.text((1, 1), f"Control Board", font=self.font, fill="white")
                     draw.text((1, 24), f"Not Powered", font=self.font, fill="white")
+                elif self.battery_voltage < NO_CAP_HIGH and self.battery_voltage > NO_CAP_LOW:
+                    draw.text((1, 1), f"Voltage Select Jumper", font=self.font_small, fill="white")
+                    draw.text((1, 24), f"Not Detected", font=self.font_medium, fill="white")
                 elif self.battery_voltage == -1:
                     draw.text((1, 1), "Battery Info", font=self.font, fill="white")
                     draw.text((1, 24), f"Voltage: ???", font=self.font, fill="white")
@@ -299,7 +305,7 @@ class MBotOLED:
             # Toggle invert flag and pause for FLASH_INTERVAL
             invert = not invert
             time.sleep(FLASH_INTERVAL)
-            if self.battery_voltage < JUMPER_CAP_6V_HIGH:
+            if self.battery_voltage < JUMPER_6V_HIGH:
                 self.low_battery_flag = False
                 break
 
