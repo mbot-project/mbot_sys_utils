@@ -7,19 +7,33 @@ import math
 import logging
 import lcm
 import subprocess
+import threading
 from luma.core.interface.serial import i2c
 from luma.core.render import canvas
 from luma.oled.device import ssd1306
 from PIL import ImageFont
 from logging.handlers import RotatingFileHandler
 
+# Battery = -1 means no message received
+# Battery in (0, 1.5) means missing jumper cap
+# Battery in (3.5, 5.5) means the barrel plug is unplugged
+# Battery in (6, 7) means the jumper cap is on 6 V
+# Battery in (7, 12) means the jumper cap is on 12 V
+
 # Define constants
 SCREEN_CHANGE_DELAY = 3
 QR_SCREEN_CHANGE_DELAY = 8
+FLASH_INTERVAL = 0.4  # Flash interval in seconds
 DIS_WIDTH = 128  # OLED display width, in pixels
 DIS_HEIGHT = 64  # OLED display height, in pixels
-BATTERY_LIMIT = 9  # Volts
-FLASH_INTERVAL = 0.4  # Flash interval in seconds
+BATTERY_LIMIT_HIGH = 12  # Volts
+BATTERY_LIMIT_LOW = 9
+JUMPER_6V_HIGH = 7
+JUMPER_6V_LOW = 6
+UNPLUG_BARREL_HIGH = 5.5
+UNPLUG_BARREL_LOW = 3.5
+NO_CAP_HIGH = 1.5
+NO_CAP_LOW = 0
 
 # Setup logging
 log_file = "/var/log/mbot/mbot_oled.log"
@@ -41,6 +55,7 @@ class MBotOLED:
             self.font_large = ImageFont.truetype("/usr/local/etc/arial.ttf", 18)
             self.font = ImageFont.truetype("/usr/local/etc/arial.ttf", 14)
             self.font_small = ImageFont.truetype("/usr/local/etc/arial.ttf", 10)
+            self.font_medium = ImageFont.truetype("/usr/local/etc/arial.ttf", 12)
         except Exception as e:
             logging.error(f"Initialization failed: {e}")
             self.device = None
@@ -52,6 +67,11 @@ class MBotOLED:
         self.battery_voltage = -1
         self.ip_str = "IP Not Found"
         self.mbot_lcm_installed = self.check_mbot_lcm_installed()
+        self.low_battery_flag = False
+
+        # Track the last received message time
+        self.last_message_time = time.time()
+        self.message_timeout = 10  # Set a threshold in seconds to detect message timeout
 
     def check_mbot_lcm_installed(self):
         try:
@@ -165,6 +185,10 @@ class MBotOLED:
         if self.mbot_lcm_installed:
             battery_info = self.mbot_analog_t.decode(data)
             self.battery_voltage = battery_info.volts[3]
+            if self.battery_voltage < BATTERY_LIMIT_LOW and self.battery_voltage > JUMPER_6V_HIGH:
+                self.low_battery_flag = True
+
+        self.last_message_time = time.time()
 
     # Screen Display Methods
     def display_wifi_info(self):
@@ -232,15 +256,37 @@ class MBotOLED:
             time.sleep(SCREEN_CHANGE_DELAY)
 
     def display_battery_info(self):
+        # Check for message timeout
+        if self.mbot_lcm_installed:
+            self.check_message_timeout()
         def draw_battery(draw):
-            draw.text((1, 1), "Battery Info", font=self.font, fill="white")
             if self.mbot_lcm_installed:
-                draw.text((1, 24), f"Voltage: {self.battery_voltage:.2f} V", font=self.font, fill="white")
+                if self.battery_voltage < JUMPER_6V_HIGH and self.battery_voltage > JUMPER_6V_LOW:
+                    draw.text((1, 1), "Voltage Select Jumper 6V", font=self.font_small, fill="white")
+                    draw.text((1, 24), f"Motor Volt: {self.battery_voltage:.2f} V", font=self.font_medium, fill="white")
+                elif self.battery_voltage < UNPLUG_BARREL_HIGH and self.battery_voltage > UNPLUG_BARREL_LOW:
+                    draw.text((1, 1), f"Control Board", font=self.font, fill="white")
+                    draw.text((1, 24), f"Not Powered", font=self.font, fill="white")
+                elif self.battery_voltage < NO_CAP_HIGH and self.battery_voltage > NO_CAP_LOW:
+                    draw.text((1, 1), f"Voltage Select Jumper", font=self.font_small, fill="white")
+                    draw.text((1, 24), f"Not Detected", font=self.font_medium, fill="white")
+                elif self.battery_voltage == -1:
+                    draw.text((1, 1), "Battery Info", font=self.font, fill="white")
+                    draw.text((1, 24), f"Voltage: ???", font=self.font, fill="white")
+                else:
+                    draw.text((1, 1), "Battery Info", font=self.font, fill="white")
+                    draw.text((1, 24), f"Voltage: {self.battery_voltage:.2f} V", font=self.font, fill="white")
             else:
                 draw.text((1, 24), "Not Available", font=self.font, fill="white")
             draw.line((0, 48, 127, 48), fill="white")
             draw.text((1, 49), self.ip_str, font=self.font, fill="white")
         self.draw(draw_battery)
+
+    def check_message_timeout(self):
+        current_time = time.time()
+        if current_time - self.last_message_time > self.message_timeout:
+            logging.warning("No new LCM messages received for a while.")
+            self.battery_voltage = -1
 
     def flash_message(self, message):
         invert = False
@@ -259,6 +305,14 @@ class MBotOLED:
             # Toggle invert flag and pause for FLASH_INTERVAL
             invert = not invert
             time.sleep(FLASH_INTERVAL)
+            if self.battery_voltage < JUMPER_6V_HIGH:
+                self.low_battery_flag = False
+                break
+
+    def lcm_thread_func(self):
+        while True:
+            if self.lc:
+                self.lc.handle_timeout(10)
 
     def main_loop(self):
         if self.device is None or self.font is None or self.font_small is None:
@@ -267,19 +321,16 @@ class MBotOLED:
 
         if self.lc:
             self.lc.subscribe("MBOT_ANALOG_IN", self.battery_info_callback)
+            lcm_thread = threading.Thread(target=self.lcm_thread_func)
+            lcm_thread.daemon = True
+            lcm_thread.start()
 
         while True:
             try:
-                if self.lc:
-                    self.lc.handle_timeout(100)
+                if self.mbot_lcm_installed and self.low_battery_flag:
+                    self.flash_message("LOW BATTERY")
 
-                if self.mbot_lcm_installed:
-                    if self.battery_voltage > BATTERY_LIMIT or self.battery_voltage == -1:
-                        self.get_wlan0_ip()
-                    else:
-                        self.flash_message("LOW BATTERY")
-                else:
-                    self.get_wlan0_ip()
+                self.get_wlan0_ip()
 
                 self.display_wifi_info()
                 time.sleep(SCREEN_CHANGE_DELAY)
