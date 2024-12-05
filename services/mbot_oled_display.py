@@ -5,9 +5,7 @@ import time
 import qrcode
 import math
 import logging
-import lcm
 import subprocess
-import threading
 from luma.core.interface.serial import i2c
 from luma.core.render import canvas
 from luma.oled.device import ssd1306
@@ -62,25 +60,9 @@ class MBotOLED:
             self.font = None
             self.font_small = None
 
-        # Set up LCM if available
-        self.lc = lcm.LCM("udpm://239.255.76.67:7667?ttl=0") if lcm else None
         self.battery_voltage = -1
         self.ip_str = "IP Not Found"
-        self.mbot_lcm_installed = self.check_mbot_lcm_installed()
         self.low_battery_flag = False
-
-        # Track the last received message time
-        self.last_message_time = time.time()
-        self.message_timeout = 10  # Set a threshold in seconds to detect message timeout
-
-    def check_mbot_lcm_installed(self):
-        try:
-            from mbot_lcm_msgs.mbot_analog_t import mbot_analog_t
-            self.mbot_analog_t = mbot_analog_t
-            return True
-        except ImportError:
-            logging.warning("ImportError. Battery information will not be available.")
-            return False
 
     def draw(self, draw_func):
         if self.device:
@@ -180,15 +162,24 @@ class MBotOLED:
             logging.error(f"Failed to get services: {e}")
             return {}
 
+    def get_battery_info(self):
+        try:
+            # Run the "mbot-status" command
+            result = subprocess.run(['mbot-status'], capture_output=True, text=True, check=True)
+            # Extract the voltage value from the command output using regex
+            match = re.search(r'Battery Voltage:\s*([\d.]+)\s*V', result.stdout)
+            if match:
+                battery_volt = float(match.group(1))
+                self.battery_voltage = battery_volt
 
-    def battery_info_callback(self, channel, data):
-        if self.mbot_lcm_installed:
-            battery_info = self.mbot_analog_t.decode(data)
-            self.battery_voltage = battery_info.volts[3]
-            if self.battery_voltage < BATTERY_LIMIT_LOW and self.battery_voltage > JUMPER_6V_HIGH:
-                self.low_battery_flag = True
-
-        self.last_message_time = time.time()
+                # Set the low battery flag based on the voltage value
+                if self.battery_voltage < BATTERY_LIMIT_LOW and self.battery_voltage > JUMPER_6V_HIGH:
+                    self.low_battery_flag = True
+            else:
+                self.battery_voltage = -2  # Unable to parse battery voltage
+        except subprocess.CalledProcessError as e:
+            logging.error(f"Error executing mbot-status: {e}")
+            self.battery_voltage = -2  # Error state
 
     # Screen Display Methods
     def display_wifi_info(self):
@@ -256,37 +247,29 @@ class MBotOLED:
             time.sleep(SCREEN_CHANGE_DELAY)
 
     def display_battery_info(self):
-        # Check for message timeout
-        if self.mbot_lcm_installed:
-            self.check_message_timeout()
+        self.get_battery_info()
         def draw_battery(draw):
-            if self.mbot_lcm_installed:
-                if self.battery_voltage < JUMPER_6V_HIGH and self.battery_voltage > JUMPER_6V_LOW:
-                    draw.text((1, 1), "Voltage Select Jumper 6V", font=self.font_small, fill="white")
-                    draw.text((1, 24), f"Motor Volt: {self.battery_voltage:.2f} V", font=self.font_medium, fill="white")
-                elif self.battery_voltage < UNPLUG_BARREL_HIGH and self.battery_voltage > UNPLUG_BARREL_LOW:
-                    draw.text((1, 1), f"Control Board", font=self.font, fill="white")
-                    draw.text((1, 24), f"Not Powered", font=self.font, fill="white")
-                elif self.battery_voltage < NO_CAP_HIGH and self.battery_voltage > NO_CAP_LOW:
-                    draw.text((1, 1), f"Voltage Select Jumper", font=self.font_small, fill="white")
-                    draw.text((1, 24), f"Not Detected", font=self.font_medium, fill="white")
-                elif self.battery_voltage == -1:
-                    draw.text((1, 1), "Battery Info", font=self.font, fill="white")
-                    draw.text((1, 24), f"Voltage: ???", font=self.font, fill="white")
-                else:
-                    draw.text((1, 1), "Battery Info", font=self.font, fill="white")
-                    draw.text((1, 24), f"Voltage: {self.battery_voltage:.2f} V", font=self.font, fill="white")
-            else:
+            if self.battery_voltage < JUMPER_6V_HIGH and self.battery_voltage > JUMPER_6V_LOW:
+                draw.text((1, 1), "Voltage Select Jumper 6V", font=self.font_small, fill="white")
+                draw.text((1, 24), f"Motor Volt: {self.battery_voltage:.2f} V", font=self.font_medium, fill="white")
+            elif self.battery_voltage < UNPLUG_BARREL_HIGH and self.battery_voltage > UNPLUG_BARREL_LOW:
+                draw.text((1, 1), f"Control Board", font=self.font, fill="white")
+                draw.text((1, 24), f"Not Powered", font=self.font, fill="white")
+            elif self.battery_voltage < NO_CAP_HIGH and self.battery_voltage > NO_CAP_LOW:
+                draw.text((1, 1), f"Voltage Select Jumper", font=self.font_small, fill="white")
+                draw.text((1, 24), f"Not Detected", font=self.font_medium, fill="white")
+            elif self.battery_voltage == -1:
+                draw.text((1, 1), "Battery Info", font=self.font, fill="white")
+                draw.text((1, 24), f"No LCM Message", font=self.font_medium, fill="white")
+            elif self.battery_voltage == -2: # error from mbot status
+                draw.text((1, 1), "Battery Info", font=self.font, fill="white")
                 draw.text((1, 24), "Not Available", font=self.font, fill="white")
+            else:
+                draw.text((1, 1), "Battery Info", font=self.font, fill="white")
+                draw.text((1, 24), f"Voltage: {self.battery_voltage:.2f} V", font=self.font, fill="white")
             draw.line((0, 48, 127, 48), fill="white")
             draw.text((1, 49), self.ip_str, font=self.font, fill="white")
         self.draw(draw_battery)
-
-    def check_message_timeout(self):
-        current_time = time.time()
-        if current_time - self.last_message_time > self.message_timeout:
-            logging.warning("No new LCM messages received for a while.")
-            self.battery_voltage = -1
 
     def flash_message(self, message):
         invert = False
@@ -309,25 +292,14 @@ class MBotOLED:
                 self.low_battery_flag = False
                 break
 
-    def lcm_thread_func(self):
-        while True:
-            if self.lc:
-                self.lc.handle_timeout(10)
-
     def main_loop(self):
         if self.device is None or self.font is None or self.font_small is None:
             logging.error("Initialization failed. Exiting application.")
             return
 
-        if self.lc:
-            self.lc.subscribe("MBOT_ANALOG_IN", self.battery_info_callback)
-            lcm_thread = threading.Thread(target=self.lcm_thread_func)
-            lcm_thread.daemon = True
-            lcm_thread.start()
-
         while True:
             try:
-                if self.mbot_lcm_installed and self.low_battery_flag:
+                if self.low_battery_flag:
                     self.flash_message("LOW BATTERY")
 
                 self.get_wlan0_ip()
