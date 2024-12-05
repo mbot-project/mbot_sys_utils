@@ -12,6 +12,8 @@ fi
 OPERATION=$1
 UF2_FILE=$2
 
+UF2_FILENAME=$(basename "$UF2_FILE" .uf2)
+
 # GPIO Pin Mapping:
 # RUN (Pin 7) and LOAD (Pin 11)
 # Jetson: Pin 7 -> GPIO 216, Pin 11 -> GPIO 50
@@ -38,6 +40,11 @@ pinctrl set $BTLD_PIN op
 pinctrl set $RUN_PIN op
 
 sleep 0.1
+
+# Create ~/.mbot_info.txt if it doesn't exist
+if [ ! -f ~/.mbot_info.txt ]; then
+    touch ~/.mbot_info.txt
+fi
 
 case "$OPERATION" in
     "load"|"run"|"flash"|"disable")
@@ -78,10 +85,34 @@ case "$OPERATION" in
                     pinctrl set $RUN_PIN dh
                     sleep 0.5
                     sudo picotool load $UF2_FILE
+                    LOAD_STATUS=$?
                     sleep 0.5
                     pinctrl set $BTLD_PIN dh
                     sleep 0.5
                     sudo picotool reboot
+                    REBOOT_STATUS=$?
+
+                    # If both picotool commands were successful
+                    if [ $LOAD_STATUS -eq 0 ] && [ $REBOOT_STATUS -eq 0 ]; then
+                        # Check the UF2 file name and add appropriate content to .mbot_info.txt
+                        if [[ "$UF2_FILENAME" == mbot_calibrate* ]]; then
+                            # Calibration file
+                            if grep -q "^mbot_calibration: " ~/.mbot_info.txt; then
+                                sed -i "s/^mbot_calibration: .*/mbot_calibration: $UF2_FILENAME/" ~/.mbot_info.txt
+                            else
+                                echo "mbot_calibration: $UF2_FILENAME" >> ~/.mbot_info.txt
+                            fi
+                        elif [[ "$UF2_FILENAME" == mbot_classic_v* || "$UF2_FILENAME" == mbot_omni_v* ]]; then
+                            # Firmware file
+                            if grep -q "^mbot_firmware: " ~/.mbot_info.txt; then
+                                sed -i "s/^mbot_firmware: .*/mbot_firmware: $UF2_FILENAME/" ~/.mbot_info.txt
+                            else
+                                echo "mbot_firmware: $UF2_FILENAME" >> ~/.mbot_info.txt
+                            fi
+                        fi
+                    else
+                        echo "ERROR: Flash operation failed."
+                    fi
                 else
                     echo "Missing UF2 file for 'flash' operation."
                 fi
