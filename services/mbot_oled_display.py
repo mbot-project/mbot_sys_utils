@@ -165,9 +165,9 @@ class MBotOLED:
     def get_battery_info(self):
         try:
             # Run the "mbot-status" command
-            result = subprocess.run(['mbot-status --topic battery'], capture_output=True, text=True, check=True)
+            result = subprocess.run(['mbot-status', '--topic', 'battery'], capture_output=True, text=True, check=True)
             # Extract the voltage value from the command output using regex
-            match = re.search(r'Battery Voltage:\s*([\d.]+)\s*V', result.stdout)
+            match = re.search(r'Battery Voltage:\s*(-?[\d.]+)\s*V', result.stdout)
             if match:
                 battery_volt = float(match.group(1))
                 self.battery_voltage = battery_volt
