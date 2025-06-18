@@ -10,10 +10,18 @@ from luma.core.render import canvas
 from luma.oled.device import ssd1306
 from PIL import ImageFont
 from logging.handlers import RotatingFileHandler
+import signal
 
 import rclpy
 from rclpy.node import Node
-from mbot_interfaces.msg import BatteryADC  # Custom message with battery voltages
+# Attempt to import the custom BatteryADC message. If it is unavailable we will
+# continue to run the application, but omit the battery-level subscription.
+try:
+    from mbot_interfaces.msg import BatteryADC
+    BATTERY_SUPPORT = True
+except ImportError as e:
+    BatteryADC = None  # type: ignore  # Placeholder so the name is defined
+    BATTERY_SUPPORT = False
 
 # Define constants
 SCREEN_CHANGE_DELAY = 3
@@ -36,10 +44,8 @@ class MBotOLED:
     def __init__(self):
         # Initialize OLED device and fonts
         self.device = None
-        self.font_large = None
         self.font = None
         self.font_small = None
-        self.font_medium = None
         
         try:
             logging.info("Attempting to initialize OLED device...")
@@ -53,20 +59,16 @@ class MBotOLED:
             # Ubuntu 24 optimized fonts for OLED displays
             font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
             
-            self.font_large = ImageFont.truetype(font_path, 18)
             self.font = ImageFont.truetype(font_path, 14)
             self.font_small = ImageFont.truetype(font_path, 10)
-            self.font_medium = ImageFont.truetype(font_path, 12)
             logging.info(f"Fonts loaded successfully from: {font_path}")
                 
         except Exception as e:
             logging.error(f"Failed to load fonts: {e}")
             logging.info("Attempting to use default font...")
             try:
-                self.font_large = ImageFont.load_default()
                 self.font = ImageFont.load_default()
                 self.font_small = ImageFont.load_default()
-                self.font_medium = ImageFont.load_default()
                 logging.info("Default fonts loaded successfully")
             except Exception as e2:
                 logging.error(f"Failed to load default fonts: {e2}")
@@ -84,17 +86,29 @@ class MBotOLED:
             rclpy.init(args=None)
             self.ros_node = Node('mbot_oled_display')
             # Subscribe to the battery topic published by the firmware
-            self.ros_node.create_subscription(
-                BatteryADC,
-                'battery_adc',  # Topic name must match the publisher in mbot firmware
-                self.battery_info_callback,
-                10  # QoS depth
-            )
+            if BATTERY_SUPPORT:
+                self.ros_node.create_subscription(
+                    BatteryADC,
+                    'battery_adc',  # Topic name must match the publisher in mbot firmware
+                    self.battery_info_callback,
+                    10  # QoS depth
+                )
+                logging.info("Battery subscription created successfully.")
+            else:
+                logging.info("BatteryADC message not available; skipping battery subscription.")
+
+            # Inform the user if battery support is unavailable
+            if not BATTERY_SUPPORT:
+                logging.warning("BatteryADC message not found. Battery display will be disabled, but the rest of the UI will function.")
 
             # Spin the ROS node in a daemon thread so our main loop can run concurrently
             self.ros_spin_thread = threading.Thread(target=rclpy.spin, args=(self.ros_node,), daemon=True)
             self.ros_spin_thread.start()
-            logging.info("ROS 2 node started and battery subscription initialized")
+            logging.info("ROS 2 node started")
+
+            # Simple signal handler for fast quit
+            signal.signal(signal.SIGTERM, self._fast_quit)
+            signal.signal(signal.SIGINT, self._fast_quit)
         except Exception as e:
             logging.error(f"Failed to initialize ROS 2 subscription: {e}")
             # Make sure rclpy is shutdown cleanly if initialization partially succeeded
@@ -187,7 +201,7 @@ class MBotOLED:
             logging.error(f"Failed to get IP: {e}")
             self.ip_str = "Error"
 
-    def battery_info_callback(self, msg: BatteryADC):
+    def battery_info_callback(self, msg):
         self.battery_voltage = msg.volts[3]
         self.last_message_time = time.time()
 
@@ -218,7 +232,9 @@ class MBotOLED:
         self.draw(draw_resources)
 
     def display_battery_info(self):
-        self.check_message_timeout()
+        if BATTERY_SUPPORT:
+            self.check_message_timeout()
+        
         def draw_battery(draw):
             if self.battery_voltage == -1:
                 draw.text((1, 1), "Battery Info", font=self.font, fill="white")
@@ -233,7 +249,7 @@ class MBotOLED:
     def check_message_timeout(self):
         current_time = time.time()
         if current_time - self.last_message_time > self.message_timeout:
-            logging.warning("No new messages received for a while.")
+            logging.debug("Battery topic timeout – showing ??? on display.")
             self.battery_voltage = -1
 
     def main_loop(self):
@@ -256,6 +272,16 @@ class MBotOLED:
                 logging.error(f"Unhandled exception during main loop: {e}")
                 time.sleep(5)
                 continue
+
+    # ------------------------- Fast-Quit Signal Handler -------------------------
+    def _fast_quit(self, signum, frame):
+        """Terminate the process quickly on SIGTERM/SIGINT while letting ROS shutdown."""
+        logging.info(f"Received signal {signum}; shutting down OLED service immediately.")
+        try:
+            rclpy.shutdown()
+        except Exception:
+            pass
+        os._exit(0)
 
 if __name__ == '__main__':
     mbot_oled = MBotOLED()
