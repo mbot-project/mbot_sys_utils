@@ -1,0 +1,14 @@
+[Unit]
+Description=Show diagnostics on OLED screen
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Restart=on-failure
+RestartSec=5
+ExecStart=/bin/bash -c 'source ~/mbot_ws/install/setup.bash && exec /usr/bin/python3 /usr/local/etc/mbot_ros_oled_display.py'
+User=shaw
+
+[Install]
+WantedBy=network-online.target

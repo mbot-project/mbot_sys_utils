@@ -4,11 +4,16 @@ import re
 import time
 import logging
 import subprocess
+import threading
 from luma.core.interface.serial import i2c
 from luma.core.render import canvas
 from luma.oled.device import ssd1306
 from PIL import ImageFont
 from logging.handlers import RotatingFileHandler
+
+import rclpy
+from rclpy.node import Node
+from mbot_interfaces.msg import BatteryADC  # Custom message with battery voltages
 
 # Define constants
 SCREEN_CHANGE_DELAY = 3
@@ -73,6 +78,31 @@ class MBotOLED:
         # Track the last received message time
         self.last_message_time = time.time()
         self.message_timeout = 10  # Set a threshold in seconds to detect message timeout
+
+        # Initialize ROS 2 subscription in a background thread
+        try:
+            rclpy.init(args=None)
+            self.ros_node = Node('mbot_oled_display')
+            # Subscribe to the battery topic published by the firmware
+            self.ros_node.create_subscription(
+                BatteryADC,
+                'battery_adc',  # Topic name must match the publisher in mbot firmware
+                self.battery_info_callback,
+                10  # QoS depth
+            )
+
+            # Spin the ROS node in a daemon thread so our main loop can run concurrently
+            self.ros_spin_thread = threading.Thread(target=rclpy.spin, args=(self.ros_node,), daemon=True)
+            self.ros_spin_thread.start()
+            logging.info("ROS 2 node started and battery subscription initialized")
+        except Exception as e:
+            logging.error(f"Failed to initialize ROS 2 subscription: {e}")
+            # Make sure rclpy is shutdown cleanly if initialization partially succeeded
+            try:
+                rclpy.shutdown()
+            except Exception:
+                pass
+            self.ros_node = None
 
     def draw(self, draw_func):
         if self.device:
@@ -157,9 +187,9 @@ class MBotOLED:
             logging.error(f"Failed to get IP: {e}")
             self.ip_str = "Error"
 
-    def battery_info_callback(self, channel, data):
-        # TODO: Implement battery info callback
-        pass
+    def battery_info_callback(self, msg: BatteryADC):
+        self.battery_voltage = msg.volts[3]
+        self.last_message_time = time.time()
 
     # Screen Display Methods
     def display_wifi_info(self):
