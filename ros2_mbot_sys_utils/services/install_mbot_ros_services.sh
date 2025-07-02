@@ -1,0 +1,37 @@
+#!/bin/bash
+
+set -e  # Quit on error.
+
+SERVICE_LIST="mbot-microros-agent
+              mbot-oled"
+
+# Copy the scripts we need for the services.
+sudo cp mbot_ros_oled_display.py /usr/local/etc/
+sudo chmod +x /usr/local/etc/mbot_ros_oled_display.py
+
+# Copy the services.
+for serv in $SERVICE_LIST
+do
+    sudo cp $serv.service /etc/systemd/system/$serv.service
+done
+
+# Enable time sync wait service
+sudo systemctl enable --now systemd-time-wait-sync.service
+
+# Enable the services.
+sudo systemctl daemon-reload
+for serv in $SERVICE_LIST
+do
+    sudo systemctl enable $serv.service
+    sudo systemctl start $serv.service
+done
+
+# Success message.
+echo
+echo "Installed, enabled, and started the following services:"
+echo
+for serv in $SERVICE_LIST
+do
+    echo "    $serv.service"
+done
+echo
