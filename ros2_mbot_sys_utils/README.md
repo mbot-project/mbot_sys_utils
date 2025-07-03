@@ -4,20 +4,33 @@ Install scripts and utilities for setting up an MBot ROS2 environment.
 This has been tested with Ubuntu 24 on the Raspberry Pi 5.
 
 ## Setting up a fresh image
+### 0. Get Ubuntu SD card ready
+Flash Ubuntu 24 onto an SD card, then plug in a monitor, keyboard, and mouse to your Raspberry Pi, boot up, and set the desired configurations. The default login information should be:
+* User: `mbot`
+* Password: `i<3robots!`
 
-### Install system dependencies
+**Note, the user name must be `mbot`.**
 
-### Setup ROS2 Jazzy
+### 1. Install system dependencies
+```bash
+chmod +x install_mbot_dependencies.sh 
+./install_mbot_dependencies.sh 
+```
+### 2. Setup ROS2 Jazzy
 
+### 3. Copy mbot_config.txt
+```bash
+sudo cp mbot_config.txt /boot/firmware
+```
 
-### Set udev rules
+### 4. Set udev rules
 ```bash
 cd ~/mbot_sys_utils/ros2_mbot_sys_utils/udev_rules
 chmod +x ros-mbot.rules
 ./ros-mbot.rules 
 ```
 
-### Install services
+### 5. Install services
 ```bash
 cd ~/mbot_sys_utils/ros2_mbot_sys_utils/services
 ./install_mbot_ros_services.sh 

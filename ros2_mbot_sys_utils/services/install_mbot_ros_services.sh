@@ -2,12 +2,15 @@
 
 set -e  # Quit on error.
 
-SERVICE_LIST="mbot-microros-agent
+SERVICE_LIST="mbot-start-networking
+              mbot-microros-agent
               mbot-oled"
 
 # Copy the scripts we need for the services.
 sudo cp mbot_ros_oled_display.py /usr/local/etc/
 sudo chmod +x /usr/local/etc/mbot_ros_oled_display.py
+sudo cp mbot_start_networking.sh /usr/local/etc/
+sudo chmod +x /usr/local/etc/mbot_start_networking.sh
 
 # Copy the services.
 for serv in $SERVICE_LIST
