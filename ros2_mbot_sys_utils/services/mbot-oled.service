@@ -11,4 +11,4 @@ ExecStart=/bin/bash -c 'source ~/mbot_ws/install/setup.bash && exec /usr/bin/pyt
 User=mbot
 
 [Install]
-WantedBy=network-online.target
+WantedBy=multi-user.target

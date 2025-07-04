@@ -25,6 +25,7 @@ if [[ "$model" == *"Raspberry Pi 5"* ]]; then
     echo "Detected Raspberry Pi 5" | tee -a "$log_file"
     BTLD_PIN=4
     RUN_PIN=17
+    GPIO_CHIP="gpiochip4"
 else
     echo "ERROR: Unknown hardware!" | tee -a "$log_file"
     exit 1
@@ -36,7 +37,6 @@ echo "===== $(date '+%Y-%m-%d %H:%M:%S') =====" | tee -a "$log_file"
 while IFS='=' read -r key value; do
     case "$key" in
         mbot_hostname) hostname="$value";;
-        mbot_ap_ssid) ap_ssid="$value";;
         mbot_ap_password) ap_password="$value";;
         new_wifi_ssid) home_wifi_ssid="$value";;
         new_wifi_password) home_wifi_password="$value";;
@@ -44,7 +44,7 @@ while IFS='=' read -r key value; do
     esac
 done < "$config_file"
 
-[[ -z "$ap_ssid" ]] && ap_ssid="${hostname}-AP"
+ap_ssid="${hostname}-AP"
 
 # Change the hostname in /etc/hosts
 chmod 666 /etc/hosts
@@ -52,12 +52,6 @@ sed -i "s/$(uname -n)/$hostname/g" /etc/hosts
 hostnamectl set-hostname "$hostname"
 echo "$hostname" > /etc/hostname
 echo "hostname set to '$hostname'" | tee -a "$log_file"
-
-# Setup LO as multicast for localhost LCM connections
-ifconfig lo multicast
-if ! route -n | grep -q "224.0.0.0"; then
-    route add -net 224.0.0.0 netmask 240.0.0.0 dev lo
-fi
 
 # Check if there is an active WiFi connection
 start_ap=false
@@ -117,29 +111,27 @@ if [[ $start_ap == true ]]; then
     echo "Access point started." | tee -a "$log_file"
 fi
 
-sudo pinctrl set "$BTLD_PIN" op
-sudo pinctrl set "$RUN_PIN" op
 sleep 0.1
 
 case "$autostart" in
     run)
-        sudo pinctrl set "$RUN_PIN" dl
-        sudo pinctrl set "$BTLD_PIN" dh
+        sudo gpioset "$GPIO_CHIP" "$RUN_PIN"=0
+        sudo gpioset "$GPIO_CHIP" "$BTLD_PIN"=1
         sleep 0.1
-        sudo pinctrl set "$RUN_PIN" dh
+        sudo gpioset "$GPIO_CHIP" "$RUN_PIN"=1
         sleep 0.1
         echo "Autostart is set to run" | tee -a "$log_file"
         ;;
     bootload)
-        sudo pinctrl set "$BTLD_PIN" dl
-        sudo pinctrl set "$RUN_PIN" dl
+        sudo gpioset "$GPIO_CHIP" "$BTLD_PIN"=0
+        sudo gpioset "$GPIO_CHIP" "$RUN_PIN"=0
         sleep 0.1
-        sudo pinctrl set "$RUN_PIN" dh
+        sudo gpioset "$GPIO_CHIP" "$RUN_PIN"=1
         echo "Autostart is set to bootload" | tee -a "$log_file"
         ;;
     disable)
-        sudo pinctrl set "$BTLD_PIN" dh
-        sudo pinctrl set "$RUN_PIN" dl
+        sudo gpioset "$GPIO_CHIP" "$BTLD_PIN"=1
+        sudo gpioset "$GPIO_CHIP" "$RUN_PIN"=0
         sleep 0.1
         echo "Autostart is disabled" | tee -a "$log_file"
         ;;

@@ -1,7 +1,5 @@
 [Unit]
 Description=Start MBot Networking
-After=network-online.target
-Wants=network-online.target
 
 [Service]
 Type=oneshot
@@ -13,4 +11,4 @@ User=root
 RemainAfterExit=yes
 
 [Install]
-WantedBy=graphical.target
+WantedBy=multi-user.target

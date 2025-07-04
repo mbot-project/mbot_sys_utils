@@ -1,5 +1,7 @@
 [Unit]
 Description=MBot micro-ROS Agent
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
