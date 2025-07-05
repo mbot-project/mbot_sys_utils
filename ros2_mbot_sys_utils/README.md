@@ -37,3 +37,9 @@ chmod +x ros-mbot.rules
 cd ~/mbot_sys_utils/ros2_mbot_sys_utils/services
 ./install_mbot_ros_services.sh 
 ```
+
+### 6. Copy MWireless connect script
+```bash
+cd ~/mbot_sys_utils/ros2_mbot_sys_utils
+cp SecureW2_JoinNow.run ~
+```
