@@ -13,11 +13,13 @@ Flash Ubuntu 24 onto an SD card, then plug in a monitor, keyboard, and mouse to 
 
 ### 1. Install system dependencies
 ```bash
-chmod +x install_mbot_dependencies.sh 
 ./install_mbot_dependencies.sh 
 ```
 ### 2. Setup ROS2 Jazzy
-
+```bash
+./install_ros2_jazzy.sh
+./install_microros.sh
+```
 ### 3. Copy mbot_config.txt
 ```bash
 sudo cp mbot_config.txt /boot/firmware

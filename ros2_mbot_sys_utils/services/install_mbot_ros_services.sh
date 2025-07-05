@@ -2,7 +2,7 @@
 
 set -e  # Quit on error.
 
-SERVICE_LIST="mbot-start-networking
+SERVICE_LIST="mbot-start-network
               mbot-microros-agent
               mbot-oled"
 
