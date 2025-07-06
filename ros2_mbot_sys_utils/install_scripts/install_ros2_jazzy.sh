@@ -15,13 +15,18 @@ export ROS_APT_SOURCE_VERSION=$(curl -s https://api.github.com/repos/ros-infrast
 curl -L -o /tmp/ros2-apt-source.deb "https://github.com/ros-infrastructure/ros-apt-source/releases/download/${ROS_APT_SOURCE_VERSION}/ros2-apt-source_${ROS_APT_SOURCE_VERSION}.$(. /etc/os-release && echo $VERSION_CODENAME)_all.deb" # If using Ubuntu derivates use $UBUNTU_CODENAME
 sudo dpkg -i /tmp/ros2-apt-source.deb
 
+echo "Updating and upgrading packages..."
 sudo apt update
-sudo apt --fix-broken install
-sudo apt upgrade
+sudo apt --fix-broken install -y
+sudo apt upgrade -y
 
-sudo apt install ros-jazzy-ros-base
+echo "Installing ROS 2 base..."
+sudo apt install ros-jazzy-ros-base -y
 
-sudo apt install '~nros-jazzy-rqt*'
+echo "Installing rqt..."
+sudo apt install '~nros-jazzy-rqt*' -y
+
+echo "Installing rviz2..."
 sudo apt install ros-jazzy-rviz2 -y
 
 sudo apt install -y ros-jazzy-joint-state-publisher ros-jazzy-xacro ros-jazzy-teleop-twist-keyboard ros-jazzy-tf-transformations
