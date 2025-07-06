@@ -19,15 +19,25 @@ chmod +x mbot-upload-firmware
 sudo cp mbot-upload-firmware /usr/local/bin
 
 # Install pico-sdk
-git clone --recurse-submodules https://github.com/raspberrypi/pico-sdk.git $HOME/pico-sdk
+if [ -d "$HOME/pico-sdk" ]; then
+    rm -rf "$HOME/pico-sdk"
+fi
+
+git clone --recurse-submodules https://github.com/raspberrypi/pico-sdk.git "$HOME/pico-sdk"
 
 # Configure environment
-export PICO_SDK_PATH=$HOME/pico-sdk
-echo "export PICO_SDK_PATH=$HOME/pico-sdk" >> ~/.bashrc
-source ~/.bashrc
+export PICO_SDK_PATH="$HOME/pico-sdk"
+if ! grep -q "export PICO_SDK_PATH=$HOME/pico-sdk" ~/.bashrc; then
+    echo "export PICO_SDK_PATH=$HOME/pico-sdk" >> ~/.bashrc
+    source ~/.bashrc
+fi
 
 # Install picotool
 cd ~
+# Clean up previous downloads and builds
+rm -f 2.1.1.zip
+rm -rf picotool-2.1.1
+
 wget https://github.com/raspberrypi/picotool/archive/refs/tags/2.1.1.zip
 unzip 2.1.1.zip
 cd picotool-2.1.1
