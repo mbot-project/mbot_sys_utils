@@ -22,6 +22,7 @@ sudo cp mbot-upload-firmware /usr/local/bin
 git clone --recurse-submodules https://github.com/raspberrypi/pico-sdk.git $HOME/pico-sdk
 
 # Configure environment
+export PICO_SDK_PATH=$HOME/pico-sdk
 echo "export PICO_SDK_PATH=$HOME/pico-sdk" >> ~/.bashrc
 source ~/.bashrc
 
