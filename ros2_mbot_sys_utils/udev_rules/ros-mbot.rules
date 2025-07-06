@@ -1,8 +1,3 @@
-#!/bin/bash
-
 KERNEL=="ttyACM[0-9]*", GROUP="dialout", MODE="0666"
 KERNEL=="ttyUSB[0-9]*", GROUP="dialout", MODE="0666"
-
-sudo cp ros-mbot.rules /etc/udev/rules.d/
-sudo udevadm control --reload-rules
-sudo udevadm trigger
+SUBSYSTEM=="i2c-dev", KERNEL=="i2c-[0-9]*", MODE="0666"
