@@ -7,7 +7,7 @@ sudo apt update
 sudo apt upgrade -y
 
 # Install Deps
-sudo apt -y install gh colcon wget cmake gpg apt-transport-https minicom gcc-arm-none-eabi
+sudo apt -y install gh colcon wget cmake gpg apt-transport-https minicom gcc-arm-none-eabi build-essential pkg-config libusb-1.0-0-dev
 sudo apt -y install python3-dev python3-numpy python3-matplotlib python3-opencv python3-scipy python3-pip
 sudo apt -y install python3-qrcode python3-luma.oled
 
