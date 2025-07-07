@@ -2,24 +2,24 @@
 
 set -e  # Quit on error.
 
+export PICO_TOOLCHAIN_PATH=/usr/bin/
 echo "export PICO_TOOLCHAIN_PATH=/usr/bin/" >> ~/.bashrc
-source ~/.bashrc
-
-# Source the ROS 2 installation
-source /opt/ros/$ROS_DISTRO/setup.bash
 
 # install utilities
 sudo apt install -y python3-rosdep
 
 # Update dependencies using rosdep
-sudo apt update 
-sudo rosdep init && rosdep update
+sudo apt update
+if [ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]; then
+    sudo rosdep init
+fi
+rosdep update
 
 # Create a workspace and download the micro-ROS tools
 cd ~
 mkdir microros_ws
 cd microros_ws
-git clone -b $ROS_DISTRO https://github.com/micro-ROS/micro_ros_setup.git src/micro_ros_setup
+git clone -b jazzy https://github.com/micro-ROS/micro_ros_setup.git src/micro_ros_setup
 
 rosdep install --from-paths src --ignore-src -y
 
