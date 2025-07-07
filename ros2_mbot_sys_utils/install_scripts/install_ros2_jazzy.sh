@@ -34,5 +34,8 @@ sudo apt install -y ros-jazzy-joint-state-publisher ros-jazzy-xacro ros-jazzy-te
 # Install navigation stack
 sudo apt install -y ros-jazzy-navigation2 ros-jazzy-nav2-bringup ros-jazzy-slam-toolbox
 
+sudo apt update
+sudo apt --fix-broken install -y
+
 echo "source /opt/ros/jazzy/setup.bash" >> ~/.bashrc
 echo "export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST" >> ~/.bashrc
