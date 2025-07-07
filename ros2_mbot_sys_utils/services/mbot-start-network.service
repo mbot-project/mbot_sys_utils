@@ -1,5 +1,7 @@
 [Unit]
 Description=Start MBot Networking
+After=network.target NetworkManager.service
+Wants=NetworkManager.service
 
 [Service]
 Type=oneshot
