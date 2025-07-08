@@ -83,7 +83,7 @@ echo "Please run 'source ~/.bashrc' or open a new terminal to use ROS 2."
 echo "Verifying installation..."
 if command -v ros2 &> /dev/null; then
     echo "✓ ROS 2 CLI tools installed successfully"
-    ros2 --version
+    ros2 --help | head -1
 else
     echo "✗ ROS 2 CLI tools not found"
 fi
