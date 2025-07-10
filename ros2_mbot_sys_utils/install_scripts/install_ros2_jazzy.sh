@@ -24,7 +24,7 @@ sudo apt-get autoclean
 
 # Clear package cache
 sudo apt-get clean
-sudo apt-get install -y --no-install-recommends curl python3-catkin-pkg-modules python3-catkin-pkg
+sudo apt-get install -y --no-install-recommends curl
 
 # Set up ROS 2 apt repository
 echo "Setting up ROS 2 apt repository..."
