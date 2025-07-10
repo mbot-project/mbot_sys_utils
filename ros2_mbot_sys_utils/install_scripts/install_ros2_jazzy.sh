@@ -36,6 +36,9 @@ sudo dpkg -i /tmp/ros2-apt-source.deb
 echo "Updating package lists..."
 sudo apt-get update
 
+# Install colcon common extensions (build toolchain)
+sudo apt-get install -y --no-install-recommends python3-colcon-common-extensions
+
 # Fix any broken dependencies
 sudo apt-get --fix-broken install -y
 

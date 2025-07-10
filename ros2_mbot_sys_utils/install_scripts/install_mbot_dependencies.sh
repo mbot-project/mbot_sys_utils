@@ -12,8 +12,8 @@ sudo apt-get install -y --no-install-recommends \
     build-essential pkg-config libusb-1.0-0-dev \
     python3-dev python3-numpy python3-matplotlib python3-opencv python3-scipy python3-pip \
     python3-qrcode python3-luma.oled \
-    gpiod python3-colcon-common-extensions
-
+    gpiod
+    
 # Install firmware upload script
 sudo install -m 755 mbot-upload-firmware /usr/local/bin/mbot-upload-firmware
 
