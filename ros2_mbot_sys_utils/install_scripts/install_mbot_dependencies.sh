@@ -3,52 +3,51 @@
 set -e  # Quit on error.
 
 #### Install software from apt-get ####
-sudo apt update
-sudo apt upgrade -y
+sudo apt-get update
+sudo apt-get upgrade -y
 
-# Install Deps
-sudo apt -y install gh colcon wget cmake gpg apt-transport-https minicom gcc-arm-none-eabi build-essential pkg-config libusb-1.0-0-dev
-sudo apt -y install python3-dev python3-numpy python3-matplotlib python3-opencv python3-scipy python3-pip
-sudo apt -y install python3-qrcode python3-luma.oled
-
-# Install gpio pin control
-sudo apt install gpiod -y
+# Install dependencies
+sudo apt-get install -y --no-install-recommends \
+    gh wget cmake gpg apt-transport-https minicom gcc-arm-none-eabi \
+    build-essential pkg-config libusb-1.0-0-dev \
+    python3-dev python3-numpy python3-matplotlib python3-opencv python3-scipy python3-pip \
+    python3-qrcode python3-luma.oled \
+    gpiod python3-colcon-common-extensions
 
 # Install firmware upload script
-chmod +x mbot-upload-firmware
-sudo cp mbot-upload-firmware /usr/local/bin
+sudo install -m 755 mbot-upload-firmware /usr/local/bin/mbot-upload-firmware
 
 # Install pico-sdk
 if [ -d "$HOME/pico-sdk" ]; then
-    rm -rf "$HOME/pico-sdk"
+    git -C "$HOME/pico-sdk" pull --recurse-submodules
+else
+    git clone --depth 1 --recurse-submodules https://github.com/raspberrypi/pico-sdk.git "$HOME/pico-sdk"
 fi
-
-git clone --recurse-submodules https://github.com/raspberrypi/pico-sdk.git "$HOME/pico-sdk"
 
 # Configure environment
 export PICO_SDK_PATH="$HOME/pico-sdk"
-if ! grep -q "export PICO_SDK_PATH=$HOME/pico-sdk" ~/.bashrc; then
-    echo "export PICO_SDK_PATH=$HOME/pico-sdk" >> ~/.bashrc
-    source ~/.bashrc
-fi
+grep -qxF "export PICO_SDK_PATH=$HOME/pico-sdk" ~/.bashrc || echo "export PICO_SDK_PATH=$HOME/pico-sdk" >> ~/.bashrc
 
 # Install picotool
-cd ~
-# Clean up previous downloads and builds
-rm -f 2.1.1.zip
-rm -rf picotool-2.1.1
-
-wget https://github.com/raspberrypi/picotool/archive/refs/tags/2.1.1.zip
-unzip 2.1.1.zip
-cd picotool-2.1.1
+PICOTOOL_VERSION=2.1.1
+rm -f /tmp/picotool-${PICOTOOL_VERSION}.zip
+rm -rf /tmp/picotool-${PICOTOOL_VERSION}
+wget -q https://github.com/raspberrypi/picotool/archive/refs/tags/${PICOTOOL_VERSION}.zip -O /tmp/picotool-${PICOTOOL_VERSION}.zip
+cd /tmp
+unzip -q picotool-${PICOTOOL_VERSION}.zip
+cd picotool-${PICOTOOL_VERSION}
 
 mkdir build
 cd build
-cmake ..
-make
+cmake .. -DPICO_SDK_PATH="$PICO_SDK_PATH"
+make -j$(nproc)
 sudo make install
 
 # cleanup
-cd ../..
-rm 2.1.1.zip
-rm -rf picotool-2.1.1
+cd /
+rm -rf /tmp/picotool-${PICOTOOL_VERSION} /tmp/picotool-${PICOTOOL_VERSION}.zip
+
+# Final apt cleanup
+sudo apt-get autoremove -y
+sudo apt-get autoclean
+sudo apt-get clean
