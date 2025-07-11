@@ -8,7 +8,10 @@ sudo apt-get upgrade -y
 
 # Install dependencies
 sudo apt-get install -y --no-install-recommends \
-    gh wget cmake gpg apt-transport-https minicom gcc-arm-none-eabi \
+    autoconf automake autotools-dev libglib2.0-dev libnewlib-arm-none-eabi \
+    libusb-dev freeglut3-dev libboost-dev libatlas-base-dev \
+    libgsl-dev libjpeg-dev openssl libssl-dev v4l-utils \
+    mesa-common-dev libgl1-mesa-dev libglu1-mesa-dev \
     build-essential pkg-config libusb-1.0-0-dev \
     python3-dev python3-numpy python3-matplotlib python3-opencv python3-scipy python3-pip \
     python3-qrcode python3-luma.oled \
