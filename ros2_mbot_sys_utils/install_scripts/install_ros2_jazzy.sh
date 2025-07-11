@@ -6,14 +6,14 @@ echo "Starting ROS 2 Jazzy installation..."
 
 # Set up locale
 locale  # check for UTF-8
-sudo apt-get update && sudo apt-get install -y --no-install-recommends locales
+sudo apt-get update && sudo apt-get install -y locales
 sudo locale-gen en_US en_US.UTF-8
 sudo update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
 export LANG=en_US.UTF-8
 locale  # verify settings
 
 # Add universe repository
-sudo apt-get install -y --no-install-recommends software-properties-common
+sudo apt-get install -y software-properties-common
 sudo add-apt-repository universe -y
 
 # Clean up any broken packages first
@@ -24,7 +24,7 @@ sudo apt-get autoclean
 
 # Clear package cache
 sudo apt-get clean
-sudo apt-get install -y --no-install-recommends curl
+sudo apt-get install -y curl
 
 # Set up ROS 2 apt repository
 echo "Setting up ROS 2 apt repository..."
@@ -37,7 +37,7 @@ echo "Updating package lists..."
 sudo apt-get update
 
 # Install colcon common extensions (build toolchain)
-sudo apt-get install -y --no-install-recommends python3-colcon-common-extensions
+sudo apt-get install -y python3-colcon-common-extensions
 
 # Fix any broken dependencies
 sudo apt-get --fix-broken install -y
@@ -48,7 +48,7 @@ sudo apt-get upgrade -y
 
 # Install all ROS 2 packages
 echo "Installing all ROS 2 packages..."
-sudo apt-get install -y --no-install-recommends \
+sudo apt-get install -y \
     ros-jazzy-ros-base \
     'ros-jazzy-rqt*' \
     ros-jazzy-rviz2 \

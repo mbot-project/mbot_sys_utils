@@ -8,7 +8,7 @@ grep -qxF 'export PICO_TOOLCHAIN_PATH=/usr/bin/' ~/.bashrc || echo 'export PICO_
 
 # install utilities
 sudo apt-get update
-sudo apt-get install -y --no-install-recommends python3-rosdep
+sudo apt-get install -y python3-rosdep
 
 # Update dependencies using rosdep
 if [ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]; then
