@@ -8,6 +8,7 @@ sudo apt-get upgrade -y
 
 # Install dependencies
 sudo apt-get install -y --no-install-recommends \
+    gh wget cmake gpg apt-transport-https minicom gcc-arm-none-eabi \
     autoconf automake autotools-dev libglib2.0-dev libnewlib-arm-none-eabi \
     libusb-dev freeglut3-dev libboost-dev libatlas-base-dev \
     libgsl-dev libjpeg-dev openssl libssl-dev v4l-utils \
