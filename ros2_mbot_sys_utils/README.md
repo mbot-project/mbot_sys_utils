@@ -4,41 +4,45 @@ Install scripts and utilities for setting up an MBot ROS2 environment.
 This has been tested with Ubuntu 24 on the Raspberry Pi 5.
 
 ## Setting up a fresh image
-### 0. Get Ubuntu SD card ready
-Flash Ubuntu 24 onto an SD card, then plug in a monitor, keyboard, and mouse to your Raspberry Pi, boot up, and set the desired configurations. The default login information should be:
-* User: `mbot`
-* Password: `i<3robots!`
+1. Git clone [mbot_sys_utils](https://github.com/mbot-project/mbot_sys_utils)
+2. `cd ~/mbot_sys_utils/ros2_mbot_sys_utils/install_scripts`
+3. Run `./install_mbot_dependencies.sh`
+4. Install ROS2 Jazzy `./install_ros2_jazzy.sh`
+5. Install microROS
+    ```bash
+    source ~/.bashrc
+    ./install_microros.sh
+    ```
+    This output is fine:
+    ```bash
+    --- stderr: micro_ros_agent                                          
+    Cloning into 'xrceagent'...
+    HEAD is now at 7362281 Release v2.4.3
+    Cloning into 'spdlog'...
+    HEAD is now at eb322062 Bump version to 1.9.2
+    ---
+    Finished <<< micro_ros_agent [2min 27s]
 
-**Note, the user name must be `mbot`.**
-
-### 1. Install system dependencies
+    Summary: 2 packages finished [2min 40s]
+      1 package had stderr output: micro_ros_agent
+    ```
+## System Config
+1. Copy mbot_config.txt
 ```bash
-./install_mbot_dependencies.sh 
-```
-### 2. Setup ROS2 Jazzy
-```bash
-./install_ros2_jazzy.sh
-./install_microros.sh
-```
-### 3. Copy mbot_config.txt
-```bash
+cd ~/mbot_sys_utils/ros2_mbot_sys_utils
 sudo cp mbot_config.txt /boot/firmware
 ```
-
-### 4. Set udev rules
+2. Set udev rules
 ```bash
 cd ~/mbot_sys_utils/ros2_mbot_sys_utils/udev_rules
-chmod +x ros-mbot.rules
-./ros-mbot.rules 
+./install_rules.sh 
 ```
-
-### 5. Install services
+3. Install services
 ```bash
 cd ~/mbot_sys_utils/ros2_mbot_sys_utils/services
 ./install_mbot_ros_services.sh 
 ```
-
-### 6. Copy MWireless connect script
+4. Copy MWireless connect script
 ```bash
 cd ~/mbot_sys_utils/ros2_mbot_sys_utils
 cp SecureW2_JoinNow.run ~
