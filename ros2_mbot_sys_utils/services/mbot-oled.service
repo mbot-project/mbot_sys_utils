@@ -7,8 +7,8 @@ Wants=network-online.target
 Type=simple
 Restart=on-failure
 RestartSec=5
-ExecStart=/bin/bash -c 'source ~/mbot_ws/install/setup.bash && exec /usr/bin/python3 /usr/local/etc/mbot_ros_oled_display.py'
+ExecStart=/bin/bash -i -c 'source ~/.bashrc && exec /usr/bin/python3 /usr/local/etc/mbot_ros_oled_display.py'
 User=mbot
 
 [Install]
-WantedBy=network-online.target
+WantedBy=multi-user.target

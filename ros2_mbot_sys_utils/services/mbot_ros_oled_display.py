@@ -29,7 +29,7 @@ DIS_WIDTH = 128  # OLED display width, in pixels
 DIS_HEIGHT = 64  # OLED display height, in pixels
 
 # Setup logging
-log_file = "/tmp/mbot_ros_oled_display.log"
+log_file = "/var/log/mbot/mbot_ros_oled_display.log"
 os.makedirs(os.path.dirname(log_file), exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
