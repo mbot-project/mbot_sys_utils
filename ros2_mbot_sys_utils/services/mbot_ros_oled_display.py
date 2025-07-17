@@ -14,6 +14,15 @@ import signal
 
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import QoSProfile, QoSReliabilityPolicy
+
+# This is for the battery subscription.
+# To be compatible with the firmware, best effort is used.
+qos_profile = QoSProfile(
+    depth=10,
+    reliability=QoSReliabilityPolicy.BEST_EFFORT
+)
+
 # Attempt to import the custom BatteryADC message. If it is unavailable we will
 # continue to run the application, but omit the battery-level subscription.
 try:
@@ -91,7 +100,7 @@ class MBotOLED:
                     BatteryADC,
                     'battery_adc',  # Topic name must match the publisher in mbot firmware
                     self.battery_info_callback,
-                    10  # QoS depth
+                    qos_profile
                 )
                 logging.info("Battery subscription created successfully.")
             else:
