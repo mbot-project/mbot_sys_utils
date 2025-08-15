@@ -26,6 +26,10 @@ This has been tested with Ubuntu 24 on the Raspberry Pi 5.
     Summary: 2 packages finished [2min 40s]
       1 package had stderr output: micro_ros_agent
     ```
+5. Install Camera
+    ```bash
+    ./install_camera.sh
+    ```
 ## System Config
 1. Copy mbot_config.txt
 ```bash
