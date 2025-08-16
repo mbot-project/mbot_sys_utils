@@ -33,7 +33,7 @@ export PICO_SDK_PATH="$HOME/pico-sdk"
 grep -qxF "export PICO_SDK_PATH=$HOME/pico-sdk" ~/.bashrc || echo "export PICO_SDK_PATH=$HOME/pico-sdk" >> ~/.bashrc
 
 # Install picotool
-PICOTOOL_VERSION=2.1.1
+PICOTOOL_VERSION=2.2.0
 rm -f /tmp/picotool-${PICOTOOL_VERSION}.zip
 rm -rf /tmp/picotool-${PICOTOOL_VERSION}
 wget -q https://github.com/raspberrypi/picotool/archive/refs/tags/${PICOTOOL_VERSION}.zip -O /tmp/picotool-${PICOTOOL_VERSION}.zip
