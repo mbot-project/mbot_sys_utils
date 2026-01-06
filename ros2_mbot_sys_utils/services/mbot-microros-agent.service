@@ -10,7 +10,7 @@ User=mbot
 ExecStart=/bin/bash -c '\
     source /opt/ros/jazzy/setup.bash && \
     source ~/microros_ws/install/local_setup.sh && \
-    ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/ttyACM1 --baudrate 115200'
+    ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/mbot_microros --baudrate 115200'
 Restart=on-failure
 RestartSec=5
 
