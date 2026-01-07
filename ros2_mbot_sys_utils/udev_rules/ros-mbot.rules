@@ -1,3 +1,10 @@
+# Generic ACM/USB permissions
 KERNEL=="ttyACM[0-9]*", GROUP="dialout", MODE="0666"
 KERNEL=="ttyUSB[0-9]*", GROUP="dialout", MODE="0666"
 SUBSYSTEM=="i2c-dev", KERNEL=="i2c-[0-9]*", MODE="0666"
+
+# MBot USB CDC persistent naming (based on interface strings)
+# TAG+="systemd" - Tells udev that this device is managed by systemd
+# ENV{SYSTEMD_WANTS} - Tells systemd to start this service when the device appears
+SUBSYSTEM=="tty", ATTRS{interface}=="MBot Debug Console", SYMLINK+="mbot_debug"
+SUBSYSTEM=="tty", ATTRS{interface}=="MBot MicroROS Data", SYMLINK+="mbot_microros", TAG+="systemd", ENV{SYSTEMD_WANTS}="mbot-microros-agent.service"
