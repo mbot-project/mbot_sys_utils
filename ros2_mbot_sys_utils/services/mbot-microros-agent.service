@@ -1,18 +1,28 @@
 [Unit]
 Description=MBot micro-ROS Agent
-After=network-online.target
+After=network-online.target dev-mbot_microros.device
 Wants=network-online.target
+# Bind to device - stop if device disappears, only start when device exists
+BindsTo=dev-mbot_microros.device
 
 [Service]
 Type=simple
 User=mbot
 
+# Small delay to ensure USB/serial is fully settled after enumeration
+ExecStartPre=/bin/sleep 1
+
 ExecStart=/bin/bash -c '\
     source /opt/ros/jazzy/setup.bash && \
     source ~/microros_ws/install/local_setup.sh && \
     ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/mbot_microros --baudrate 115200'
-Restart=on-failure
-RestartSec=5
+
+# Always restart - handles both crashes and connection losses
+Restart=always
+RestartSec=3
+
+# Give agent more time to initialize on startup
+TimeoutStartSec=30
 
 [Install]
 WantedBy=multi-user.target
