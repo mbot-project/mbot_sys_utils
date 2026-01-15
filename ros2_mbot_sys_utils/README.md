@@ -46,8 +46,4 @@ cd ~/mbot_sys_utils/ros2_mbot_sys_utils/udev_rules
 cd ~/mbot_sys_utils/ros2_mbot_sys_utils/services
 ./install_mbot_ros_services.sh 
 ```
-4. Copy MWireless connect script
-```bash
-cd ~/mbot_sys_utils/ros2_mbot_sys_utils
-cp SecureW2_JoinNow.run ~
-```
+4. Download the latest SecureW2 script to the home directory from this [link](https://cloud.securew2.com/public/92472/UMich-WiFi/).
